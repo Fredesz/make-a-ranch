@@ -13,6 +13,7 @@ const files = [
   ['InventoryService', 'src/server/Services/InventoryService.luau'],
   ['SellService', 'src/server/Services/SellService.luau'],
   ['CropService', 'src/server/Services/CropService.luau'],
+  ['SeedShopService', 'src/server/Services/SeedShopService.luau'],
 ];
 let source = fs.readFileSync('tests/roblox-mock.luau', 'utf8');
 for (const [name, file] of files) {

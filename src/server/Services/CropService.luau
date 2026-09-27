@@ -60,6 +60,19 @@ function CropService.GetSeeds(player: Player): number?
     return if session then session.Seeds else nil
 end
 
+function CropService.AddSeeds(player: Player, quantity: number): (boolean, string?)
+    local session = sessions[player]
+    if not session then return false, "DataNotFound" end
+    if typeof(quantity) ~= "number" or quantity ~= quantity
+        or quantity < 1 or quantity % 1 ~= 0
+        or quantity > 9007199254740991 - session.Seeds then
+        return false, "InvalidQuantity"
+    end
+    session.Seeds += quantity
+    updatePrompt(session)
+    return true, nil
+end
+
 function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     local session = sessions[player]
     if not session or slot ~= session.Slot or not canInteract(player, session) then
