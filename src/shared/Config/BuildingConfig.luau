@@ -16,6 +16,13 @@ local BuildingConfig: { [string]: BuildingDefinition } = {
         Height = 4,
         Color = Color3.fromRGB(150, 90, 55),
     },
+    SmallField = {
+        DisplayName = "Small Field",
+        Price = 50,
+        Footprint = Vector2.new(6, 6),
+        Height = 0.5,
+        Color = Color3.fromRGB(90, 125, 55),
+    },
 }
 
 return BuildingConfig

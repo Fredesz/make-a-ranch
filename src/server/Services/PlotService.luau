@@ -52,7 +52,10 @@ end
 
 function PlotService.OwnsSlot(player: Player, slot: Instance): boolean
     local plot = plots[player]
-    return plot ~= nil and plot.Slot == slot and slot:IsDescendantOf(workspace)
+    return plot ~= nil and (plot.Slot == slot
+        or (slot.Name == "CropSlot" and slot:GetAttribute("FieldSlot") == true
+            and slot.Parent == plot.Model))
+        and slot:IsDescendantOf(workspace)
 end
 
 function PlotService.Init()

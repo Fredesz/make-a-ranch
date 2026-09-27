@@ -5,6 +5,7 @@ local BuildingConfig = require(ReplicatedStorage.Shared.Config.BuildingConfig)
 local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 local PlotService = require(script.Parent.PlotService)
+local CropService = require(script.Parent.CropService)
 
 local initialized = false
 local BuildService = {}
@@ -86,6 +87,18 @@ function BuildService.Place(
     part:SetAttribute("FootprintX", width)
     part:SetAttribute("FootprintZ", depth)
     part.Parent = model
+    if buildingId == "SmallField" then
+        local fieldSlot = Instance.new("Part")
+        fieldSlot.Name = "CropSlot"
+        fieldSlot.Anchored = true
+        fieldSlot.Size = Vector3.new(4, 0.3, 4)
+        fieldSlot.Position = part.Position + Vector3.new(0,
+            (part.Size.Y + fieldSlot.Size.Y) / 2, 0)
+        fieldSlot.Color = PlotConfig.SoilColor
+        fieldSlot:SetAttribute("FieldSlot", true)
+        fieldSlot.Parent = model
+        assert(CropService.RegisterFieldSlot(player, fieldSlot), "Field slot registration failed")
+    end
     return true, nil
 end
 

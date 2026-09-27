@@ -16,24 +16,32 @@ assert(next(CropConfig, cropId) == nil, "Phase 3 supports exactly one crop")
 type Growth = { Visual: Part, StartedAt: number, Variant: string? }
 type Session = {
     Slot: Part,
-    Seeds: number,
+    Balance: { Count: number },
     Growth: Growth?,
     Prompt: ProximityPrompt,
     Connection: RBXScriptConnection?,
 }
 
 local sessions: { [Player]: Session } = {}
+local fieldSessions: { [Player]: { [Part]: Session } } = {}
 local initialized = false
 local CropService = {}
+
+local function getSession(player: Player, slot: Instance): Session?
+    local main = sessions[player]
+    if main and main.Slot == slot then return main end
+    local fields = fieldSessions[player]
+    return if fields then fields[slot :: Part] else nil
+end
 
 local function updatePrompt(session: Session)
     local growth = session.Growth
     local ready = growth ~= nil and os.clock() - growth.StartedAt >= config.GrowthTime
     session.Slot:SetAttribute("CropState", if growth then (if ready then "Ready" else "Growing") else "Empty")
-    session.Slot:SetAttribute("SeedsRemaining", session.Seeds)
+    session.Slot:SetAttribute("SeedsRemaining", session.Balance.Count)
     session.Prompt.ActionText = if growth then "Harvest" else "Plant"
-    session.Prompt.ObjectText = config.DisplayName .. " | Seeds: " .. session.Seeds
-    session.Prompt.Enabled = if growth then ready else session.Seeds > 0
+    session.Prompt.ObjectText = config.DisplayName .. " | Seeds: " .. session.Balance.Count
+    session.Prompt.Enabled = if growth then ready else session.Balance.Count > 0
 end
 
 local function canInteract(player: Player, session: Session): boolean
@@ -57,7 +65,7 @@ end
 
 function CropService.GetSeeds(player: Player): number?
     local session = sessions[player]
-    return if session then session.Seeds else nil
+    return if session then session.Balance.Count else nil
 end
 
 function CropService.AddSeeds(player: Player, quantity: number): (boolean, string?)
@@ -65,23 +73,26 @@ function CropService.AddSeeds(player: Player, quantity: number): (boolean, strin
     if not session then return false, "DataNotFound" end
     if typeof(quantity) ~= "number" or quantity ~= quantity
         or quantity < 1 or quantity % 1 ~= 0
-        or quantity > 9007199254740991 - session.Seeds then
+        or quantity > 9007199254740991 - session.Balance.Count then
         return false, "InvalidQuantity"
     end
-    session.Seeds += quantity
+    session.Balance.Count += quantity
     updatePrompt(session)
+    for _, fieldSession in fieldSessions[player] or {} do
+        updatePrompt(fieldSession)
+    end
     return true, nil
 end
 
 function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
-    local session = sessions[player]
+    local session = getSession(player, slot)
     if not session or slot ~= session.Slot or not canInteract(player, session) then
         return false, "InvalidPlotOrDistance"
     end
     if session.Growth then
         return false, "Occupied"
     end
-    if session.Seeds <= 0 then
+    if session.Balance.Count <= 0 then
         return false, "NoSeeds"
     end
 
@@ -91,7 +102,13 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     visual.CanCollide = false
     visual.Color = config.GrowingColor
     local growth: Growth = { Visual = visual, StartedAt = os.clock(), Variant = nil }
-    session.Seeds -= 1
+    session.Balance.Count -= 1
+    for _, fieldSession in fieldSessions[player] or {} do
+        updatePrompt(fieldSession)
+    end
+    if sessions[player] and sessions[player] ~= session then
+        updatePrompt(sessions[player])
+    end
     session.Growth = growth
     session.Slot:SetAttribute("CropId", cropId)
     setStage(session, growth, 1)
@@ -101,14 +118,14 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     -- Identity checks stop old timers from touching another crop or a released plot.
     for stage = 2, #config.StageSizes do
         task.delay(config.GrowthTime * (stage - 1) / #config.StageSizes, function()
-            if sessions[player] == session and session.Growth == growth
+            if getSession(player, session.Slot) == session and session.Growth == growth
                 and PlotService.OwnsSlot(player, session.Slot) then
                 setStage(session, growth, stage)
             end
         end)
     end
     task.delay(config.GrowthTime, function()
-        if sessions[player] == session and session.Growth == growth
+        if getSession(player, session.Slot) == session and session.Growth == growth
             and PlotService.OwnsSlot(player, session.Slot) then
             local variantId = VariantRng.Roll()
             growth.Variant = variantId
@@ -121,7 +138,7 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
 end
 
 function CropService.Harvest(player: Player, slot: Instance): (boolean, string?, string?)
-    local session = sessions[player]
+    local session = getSession(player, slot)
     if not session or slot ~= session.Slot or not canInteract(player, session) then
         return false, "InvalidPlotOrDistance"
     end
@@ -148,22 +165,18 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?,
     return true, cropId, growth.Variant
 end
 
-local function createSession(player: Player)
-    if sessions[player] then return end
-    local slot = PlotService.GetSlot(player)
-    if not slot then return end
+local function createSlotSession(player: Player, slot: Part, balance: { Count: number }): Session
     local prompt = Instance.new("ProximityPrompt")
     prompt.Name = "CropInteraction"
     prompt.MaxActivationDistance = config.InteractionDistance
     prompt.RequiresLineOfSight = false
     local session: Session = {
         Slot = slot,
-        Seeds = config.StartingSeeds,
+        Balance = balance,
         Growth = nil,
         Prompt = prompt,
         Connection = nil,
     }
-    sessions[player] = session
     session.Connection = prompt.Triggered:Connect(function(actor: Player)
         if session.Growth then
             CropService.Harvest(actor, slot)
@@ -173,6 +186,27 @@ local function createSession(player: Player)
     end)
     updatePrompt(session)
     prompt.Parent = slot
+    return session
+end
+
+local function createSession(player: Player)
+    if sessions[player] then return end
+    local slot = PlotService.GetSlot(player)
+    if not slot then return end
+    sessions[player] = createSlotSession(player, slot, { Count = config.StartingSeeds })
+end
+
+function CropService.RegisterFieldSlot(player: Player, slot: Part): boolean
+    local main = sessions[player]
+    if not main or not PlotService.OwnsSlot(player, slot) then return false end
+    local fields = fieldSessions[player]
+    if not fields then
+        fields = {}
+        fieldSessions[player] = fields
+    end
+    if fields[slot] then return false end
+    fields[slot] = createSlotSession(player, slot, main.Balance)
+    return true
 end
 
 function CropService.Init()
@@ -186,6 +220,15 @@ function CropService.Init()
         end)
     end)
     Players.PlayerRemoving:Connect(function(player: Player)
+        local fields = fieldSessions[player]
+        fieldSessions[player] = nil
+        if fields then
+            for _, fieldSession in fields do
+                if fieldSession.Connection then fieldSession.Connection:Disconnect() end
+                if fieldSession.Growth then fieldSession.Growth.Visual:Destroy() end
+                fieldSession.Prompt:Destroy()
+            end
+        end
         local session = sessions[player]
         if session then
             sessions[player] = nil

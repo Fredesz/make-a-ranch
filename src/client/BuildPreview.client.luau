@@ -8,7 +8,8 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
-local definition = require(ReplicatedStorage.Shared.Config.BuildingConfig).Barn
+local BuildingConfig = require(ReplicatedStorage.Shared.Config.BuildingConfig)
+local selectedBuilding = "Barn"
 local remote = ReplicatedStorage:WaitForChild("BuildRequest") :: RemoteEvent
 
 local preview = Instance.new("Part")
@@ -18,7 +19,8 @@ preview.CanCollide = false
 preview.CanTouch = false
 preview.CanQuery = false
 preview.Transparency = 0.55
-preview.Size = Vector3.new(definition.Footprint.X, definition.Height, definition.Footprint.Y)
+preview.Size = Vector3.new(BuildingConfig.Barn.Footprint.X,
+    BuildingConfig.Barn.Height, BuildingConfig.Barn.Footprint.Y)
 preview.Parent = workspace
 
 local active = false
@@ -38,6 +40,7 @@ end
 RunService.RenderStepped:Connect(function()
     preview.Transparency = if active then 0.55 else 1
     if not active then return end
+    local definition = BuildingConfig[selectedBuilding]
     local folder = workspace:FindFirstChild("RanchPlots")
     local plot = if folder then folder:FindFirstChild("Plot_" .. player.UserId) else nil
     local ground = if plot then plot:FindFirstChild("Ground") else nil
@@ -63,16 +66,21 @@ RunService.RenderStepped:Connect(function()
         ground.Position.Y + ground.Size.Y / 2 + definition.Height / 2,
         z) * CFrame.Angles(0, math.rad(rotation), 0)
     preview.Color = if valid then Color3.fromRGB(80, 220, 100) else Color3.fromRGB(230, 75, 75)
+    preview.Size = Vector3.new(definition.Footprint.X, definition.Height, definition.Footprint.Y)
 end)
 
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.B then
+        selectedBuilding = "Barn"
+        active = not active
+    elseif input.KeyCode == Enum.KeyCode.F then
+        selectedBuilding = "SmallField"
         active = not active
     elseif input.KeyCode == Enum.KeyCode.R and active then
         rotation = (rotation + 90) % 360
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and active and valid then
-        remote:FireServer("Barn", gridX, gridZ, rotation)
+        remote:FireServer(selectedBuilding, gridX, gridZ, rotation)
     end
 end)
 
