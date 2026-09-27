@@ -7,6 +7,8 @@ const files = [
   ['PlotConfig', 'src/shared/Config/PlotConfig.luau'],
   ['PlayerDataService', 'src/server/PlayerDataService.luau'],
   ['PlotService', 'src/server/Services/PlotService.luau'],
+  ['CropConfig', 'src/shared/Config/CropConfig.luau'],
+  ['CropService', 'src/server/Services/CropService.luau'],
 ];
 let source = fs.readFileSync('tests/roblox-mock.luau', 'utf8');
 for (const [name, file] of files) {
@@ -14,6 +16,7 @@ for (const [name, file] of files) {
   source += `\nlocal ${name} = (function()\n${body}\nend)()\n`;
 }
 source += fs.readFileSync('tests/session.spec.luau', 'utf8');
+source += fs.readFileSync('tests/crop.spec.luau', 'utf8');
 fs.mkdirSync('.cache/tests', { recursive: true });
 const bundle = '.cache/tests/session.luau';
 fs.writeFileSync(bundle, source);

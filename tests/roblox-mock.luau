@@ -34,6 +34,10 @@ function Instance.new(className)
         for _, child in self.children do if child.Name == name then return child end end
         return nil
     end
+    function object:FindFirstChildOfClass(class)
+        for _, child in self.children do if child.ClassName == class then return child end end
+        return nil
+    end
     function object:IsA(class) return class == self.ClassName or (class == "BasePart" and self.ClassName == "Part") end
     function object:IsDescendantOf(ancestor)
         local current = self.Parent
@@ -68,8 +72,27 @@ local game = { GetService = function(_, name)
     if name == "Players" then return Players end
     return {}
 end }
+local now = 0
+local scheduled = {}
+local os = { clock = function() return now end }
+local task = {}
+function task.delay(seconds, callback)
+    table.insert(scheduled, { At = now + seconds, Callback = callback })
+end
+function task.defer(callback) task.delay(0, callback) end
+local function advance(seconds)
+    local target = now + seconds
+    while true do
+        table.sort(scheduled, function(a, b) return a.At < b.At end)
+        if #scheduled == 0 or scheduled[1].At > target then break end
+        local event = table.remove(scheduled, 1)
+        now = event.At
+        event.Callback()
+    end
+    now = target
+end
 local function join(id)
-    local player = { UserId = id }
+    local player = { UserId = id, Parent = Players }
     table.insert(Players.list, player)
     Players.PlayerAdded:Fire(player)
     return player
@@ -77,4 +100,5 @@ end
 local function leave(player)
     Players.PlayerRemoving:Fire(player)
     table.remove(Players.list, table.find(Players.list, player))
+    player.Parent = nil
 end
