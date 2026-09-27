@@ -3,14 +3,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CropConfig = require(ReplicatedStorage.Shared.Config.CropConfig)
+local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlotService = require(script.Parent.PlotService)
+local VariantRng = require(script.Parent.VariantRng)
 
 -- This phase supports exactly one crop, selected from its configuration.
 local cropId, config = next(CropConfig)
 assert(cropId ~= nil and config ~= nil, "CropConfig must contain one crop")
 assert(next(CropConfig, cropId) == nil, "Phase 3 supports exactly one crop")
 
-type Growth = { Visual: Part, StartedAt: number }
+type Growth = { Visual: Part, StartedAt: number, Variant: string? }
 type Session = {
     Slot: Part,
     Seeds: number,
@@ -74,7 +76,7 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     visual.Anchored = true
     visual.CanCollide = false
     visual.Color = config.GrowingColor
-    local growth: Growth = { Visual = visual, StartedAt = os.clock() }
+    local growth: Growth = { Visual = visual, StartedAt = os.clock(), Variant = nil }
     session.Seeds -= 1
     session.Growth = growth
     session.Slot:SetAttribute("CropId", cropId)
@@ -94,14 +96,17 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     task.delay(config.GrowthTime, function()
         if sessions[player] == session and session.Growth == growth
             and PlotService.OwnsSlot(player, session.Slot) then
-            visual.Color = config.ReadyColor
+            local variantId = VariantRng.Roll()
+            growth.Variant = variantId
+            session.Slot:SetAttribute("Variant", variantId)
+            visual.Color = VariantConfig[variantId].ReadyColor
             updatePrompt(session)
         end
     end)
     return true, nil
 end
 
-function CropService.Harvest(player: Player, slot: Instance): (boolean, string?)
+function CropService.Harvest(player: Player, slot: Instance): (boolean, string?, string?)
     local session = sessions[player]
     if not session or slot ~= session.Slot or not canInteract(player, session) then
         return false, "InvalidPlotOrDistance"
@@ -111,7 +116,7 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?)
         return false, "Empty"
     end
     -- Never trust replicated attributes or prompt state to determine readiness.
-    if os.clock() - growth.StartedAt < config.GrowthTime then
+    if os.clock() - growth.StartedAt < config.GrowthTime or growth.Variant == nil then
         return false, "NotReady"
     end
 
@@ -119,8 +124,9 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?)
     growth.Visual:Destroy()
     session.Slot:SetAttribute("CropId", nil)
     session.Slot:SetAttribute("GrowthStage", nil)
+    session.Slot:SetAttribute("Variant", nil)
     updatePrompt(session)
-    return true, cropId
+    return true, cropId, growth.Variant
 end
 
 local function createSession(player: Player)

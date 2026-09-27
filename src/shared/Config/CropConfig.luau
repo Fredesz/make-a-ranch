@@ -9,7 +9,6 @@ export type CropDefinition = {
     InteractionDistance: number,
     StageSizes: { Vector3 },
     GrowingColor: Color3,
-    ReadyColor: Color3,
 }
 
 local CropConfig: { [string]: CropDefinition } = {
@@ -26,7 +25,6 @@ local CropConfig: { [string]: CropDefinition } = {
             Vector3.new(1, 1.5, 1),
         },
         GrowingColor = Color3.fromRGB(75, 170, 65),
-        ReadyColor = Color3.fromRGB(245, 140, 35),
     },
 }
 

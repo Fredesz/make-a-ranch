@@ -29,6 +29,8 @@ assert(not CropService.Plant(farmer, soil))
 standAt(farmer, soil.Position)
 
 for cycle = 1, 10 do
+    local expected = if cycle % 3 == 1 then "Golden" else if cycle % 3 == 2 then "Normal" else "Rainbow"
+    queueDraw(if expected == "Golden" then 1 else if expected == "Normal" then 6 else 100)
     -- First cycle uses the actual prompt callback, later cycles the same server API.
     if cycle == 1 then
         soil:FindFirstChild("CropInteraction").Triggered:Fire(farmer)
@@ -50,10 +52,13 @@ for cycle = 1, 10 do
     assert(not CropService.Harvest(farmer, soil))
     advance(CropConfig.Carrot.GrowthTime / 3)
     assert(soil:GetAttribute("CropState") == "Ready")
+    assert(soil:GetAttribute("Variant") == expected)
+    assert(soil:FindFirstChild("Carrot").Color == VariantConfig[expected].ReadyColor)
     assert(not CropService.Harvest(intruder, soil))
-    local ok, harvestedId = CropService.Harvest(farmer, soil)
-    assert(ok and harvestedId == "Carrot")
+    local ok, harvestedId, variantId = CropService.Harvest(farmer, soil)
+    assert(ok and harvestedId == "Carrot" and variantId == expected)
     assert(soil:GetAttribute("CropState") == "Empty")
+    assert(soil:GetAttribute("Variant") == nil)
     assert(soil:FindFirstChild("Carrot") == nil)
     assert(not CropService.Harvest(farmer, soil))
 end

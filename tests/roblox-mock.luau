@@ -23,6 +23,16 @@ vectorMeta.__index = function(v, key)
     if key == "Magnitude" then return math.sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z) end
 end
 local Color3 = { fromRGB = function(...) return {...} end }
+local draws = {}
+local Random = {}
+function Random.new()
+    return { NextInteger = function(_, minimum, maximum)
+        local value = table.remove(draws, 1) or 6
+        assert(value >= minimum and value <= maximum)
+        return value
+    end }
+end
+local function queueDraw(value) table.insert(draws, value) end
 
 local Instance = {}
 function Instance.new(className)
