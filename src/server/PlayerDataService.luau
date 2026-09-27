@@ -11,7 +11,14 @@ export type InventoryEntry = {
 export type PlayerData = {
     Coins: number,
     Inventory: { InventoryEntry },
-    Buildings: {},
+    Buildings: { BuildingEntry },
+}
+
+export type BuildingEntry = {
+    BuildingId: string,
+    GridX: number,
+    GridZ: number,
+    Rotation: number,
 }
 
 local STARTING_COINS = 100
@@ -28,6 +35,19 @@ local function copyInventory(inventory: { InventoryEntry }): { InventoryEntry }
             ItemId = entry.ItemId,
             Variant = entry.Variant,
             Quantity = entry.Quantity,
+        })
+    end
+    return result
+end
+
+local function copyBuildings(buildings: { BuildingEntry }): { BuildingEntry }
+    local result: { BuildingEntry } = {}
+    for _, entry in buildings do
+        table.insert(result, {
+            BuildingId = entry.BuildingId,
+            GridX = entry.GridX,
+            GridZ = entry.GridZ,
+            Rotation = entry.Rotation,
         })
     end
     return result
@@ -70,7 +90,6 @@ function PlayerDataService.Init()
 end
 
 -- Return a snapshot so callers cannot mutate the stored data.
--- Buildings remain empty until their system exists.
 function PlayerDataService.GetData(player: Player): PlayerData?
     local data = dataByPlayer[player]
     if not data then
@@ -80,8 +99,33 @@ function PlayerDataService.GetData(player: Player): PlayerData?
     return {
         Coins = data.Coins,
         Inventory = copyInventory(data.Inventory),
-        Buildings = table.clone(data.Buildings),
+        Buildings = copyBuildings(data.Buildings),
     }
+end
+
+function PlayerDataService.GetBuildings(player: Player): { BuildingEntry }?
+    local data = dataByPlayer[player]
+    return if data then copyBuildings(data.Buildings) else nil
+end
+
+-- The caller validates placement; this records it and charges atomically.
+function PlayerDataService.PurchaseBuilding(
+    player: Player,
+    entry: BuildingEntry,
+    price: number
+): (boolean, string?)
+    if not isValidAmount(price) then return false, "InvalidPrice" end
+    local data = dataByPlayer[player]
+    if not data then return false, "DataNotFound" end
+    if data.Coins < price then return false, "InsufficientCoins" end
+    data.Coins -= price
+    table.insert(data.Buildings, {
+        BuildingId = entry.BuildingId,
+        GridX = entry.GridX,
+        GridZ = entry.GridZ,
+        Rotation = entry.Rotation,
+    })
+    return true, nil
 end
 
 function PlayerDataService.GetInventory(player: Player): { InventoryEntry }?

@@ -14,6 +14,7 @@ local PlotConfig = {
     SeedShopOffset = Vector3.new(-7, 0, 0),
     SeedShopSize = Vector3.new(3, 0.5, 3),
     SeedShopColor = Color3.fromRGB(235, 190, 55),
+    BuildGridSize = 3,
 }
 
 return PlotConfig

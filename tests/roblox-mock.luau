@@ -23,6 +23,14 @@ vectorMeta.__index = function(v, key)
     if key == "Magnitude" then return math.sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z) end
 end
 local Color3 = { fromRGB = function(...) return {...} end }
+local Vector2 = { new = function(x, y) return { X = x, Y = y } end }
+local cframeMeta = { __mul = function(a, _) return a end }
+local CFrame = {
+    new = function(x, y, z)
+        return setmetatable({ Position = Vector3.new(x, y, z) }, cframeMeta)
+    end,
+    Angles = function() return setmetatable({}, cframeMeta) end,
+}
 local draws = {}
 local Random = {}
 function Random.new()
@@ -36,7 +44,7 @@ local function queueDraw(value) table.insert(draws, value) end
 
 local Instance = {}
 function Instance.new(className)
-    local object = { ClassName = className, attributes = {}, children = {}, Triggered = signal() }
+    local object = { ClassName = className, attributes = {}, children = {}, Triggered = signal(), OnServerEvent = signal() }
     local parent = nil
     function object:SetAttribute(key, value) self.attributes[key] = value end
     function object:GetAttribute(key) return self.attributes[key] end
@@ -48,6 +56,8 @@ function Instance.new(className)
         for _, child in self.children do if child.ClassName == class then return child end end
         return nil
     end
+    function object:GetChildren() return table.clone(self.children) end
+    function object:FireClient() end
     function object:IsA(class) return class == self.ClassName or (class == "BasePart" and self.ClassName == "Part") end
     function object:IsDescendantOf(ancestor)
         local current = self.Parent
@@ -65,6 +75,11 @@ function Instance.new(className)
     return setmetatable(object, {
         __index = function(_, key) if key == "Parent" then return parent end end,
         __newindex = function(self, key, value)
+            if key == "CFrame" then
+                rawset(self, key, value)
+                rawset(self, "Position", value.Position)
+                return
+            end
             if key ~= "Parent" then rawset(self, key, value); return end
             if parent then
                 local index = table.find(parent.children, self)
@@ -76,10 +91,12 @@ function Instance.new(className)
     })
 end
 local workspace = Instance.new("Workspace")
+local replicatedStorage = Instance.new("ReplicatedStorage")
 local Players = { PlayerAdded = signal(), PlayerRemoving = signal(), list = {} }
 function Players:GetPlayers() return table.clone(self.list) end
 local game = { GetService = function(_, name)
     if name == "Players" then return Players end
+    if name == "ReplicatedStorage" then return replicatedStorage end
     return {}
 end }
 local now = 0
