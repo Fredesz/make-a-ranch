@@ -1,6 +1,7 @@
 
 CropService.Init()
 CropService.Init()
+SellService.Init()
 local farmer = join(10)
 local intruder = join(11)
 advance(0)
@@ -129,3 +130,32 @@ assert(fullSlot:GetAttribute("Variant") == "Normal")
 assert(fullSlot:FindFirstChild("Carrot") ~= nil)
 assert(InventoryService.GetInventory(full)[1].Quantity == 9007199254740991)
 print("PASS: 10 crop cycles, variant-preserving inventory, aggregation, validation, snapshots, cleanup and stale timers")
+
+-- A sale must debit the correct stack and credit its configured value once.
+local pad = SellService.GetPad(farmer)
+assert(pad and pad:GetAttribute("OwnerUserId") == farmer.UserId)
+standAt(farmer, pad.Position)
+standAt(intruder, pad.Position)
+assert(not SellService.Sell(intruder, "Carrot", "Normal", 1))
+assert(not SellService.Sell(farmer, "FakeCrop", "Normal", 1))
+assert(not SellService.Sell(farmer, "Carrot", "FakeVariant", 1))
+assert(not SellService.Sell(farmer, "Carrot", "Normal", 0))
+assert(not SellService.Sell(farmer, "Carrot", "Normal", 999))
+assert(PlayerDataService.GetCoins(farmer) == 100)
+assert(SellService.Sell(farmer, "Carrot", "Normal", 2))
+assert(PlayerDataService.GetCoins(farmer) == 130)
+assert(SellService.Sell(farmer, "Carrot", "Golden", 1))
+assert(PlayerDataService.GetCoins(farmer) == 160)
+assert(SellService.Sell(farmer, "Carrot", "Rainbow", 3))
+assert(PlayerDataService.GetCoins(farmer) == 385)
+local remaining = {}
+for _, entry in InventoryService.GetInventory(farmer) do
+    remaining[entry.Variant] = entry.Quantity
+end
+assert(remaining.Normal == 1 and remaining.Golden == 3 and remaining.Rainbow == nil)
+assert(not SellService.Sell(farmer, "Carrot", "Rainbow", 1))
+assert(PlayerDataService.GetCoins(farmer) == 385)
+standAt(farmer, pad.Position + Vector3.new(100, 0, 0))
+assert(not SellService.Sell(farmer, "Carrot", "Normal", 1))
+assert(PlayerDataService.GetCoins(farmer) == 385)
+print("PASS: valid and invalid crop sales, variant prices, stack removal, ownership and distance")

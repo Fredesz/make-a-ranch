@@ -119,6 +119,42 @@ function PlayerDataService.AddInventoryItem(
     return true, nil
 end
 
+-- Check and apply inventory removal and coin credit without yielding.
+function PlayerDataService.SellInventoryItem(
+    player: Player,
+    itemId: string,
+    variant: string,
+    quantity: number,
+    totalPrice: number
+): (boolean, string?)
+    if typeof(itemId) ~= "string" or typeof(variant) ~= "string"
+        or not isValidAmount(quantity) or quantity == 0
+        or not isValidAmount(totalPrice) then
+        return false, "InvalidSale"
+    end
+    local data = dataByPlayer[player]
+    if not data then return false, "DataNotFound" end
+    local index: number? = nil
+    for i, entry in data.Inventory do
+        if entry.ItemId == itemId and entry.Variant == variant then
+            index = i
+            break
+        end
+    end
+    if not index or data.Inventory[index].Quantity < quantity then
+        return false, "InsufficientItems"
+    end
+    if totalPrice > MAX_SAFE_INTEGER - data.Coins then
+        return false, "BalanceLimitExceeded"
+    end
+    data.Inventory[index].Quantity -= quantity
+    if data.Inventory[index].Quantity == 0 then
+        table.remove(data.Inventory, index)
+    end
+    data.Coins += totalPrice
+    return true, nil
+end
+
 function PlayerDataService.GetCoins(player: Player): number?
     local data = dataByPlayer[player]
     return if data then data.Coins else nil
