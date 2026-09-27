@@ -6,6 +6,7 @@ local CropConfig = require(ReplicatedStorage.Shared.Config.CropConfig)
 local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlotService = require(script.Parent.PlotService)
 local VariantRng = require(script.Parent.VariantRng)
+local InventoryService = require(script.Parent.InventoryService)
 
 -- This phase supports exactly one crop, selected from its configuration.
 local cropId, config = next(CropConfig)
@@ -118,6 +119,11 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?,
     -- Never trust replicated attributes or prompt state to determine readiness.
     if os.clock() - growth.StartedAt < config.GrowthTime or growth.Variant == nil then
         return false, "NotReady"
+    end
+
+    local added, reason = InventoryService.AddCrop(player, cropId, growth.Variant, 1)
+    if not added then
+        return false, reason
     end
 
     session.Growth = nil

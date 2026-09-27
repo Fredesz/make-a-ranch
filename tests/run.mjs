@@ -10,6 +10,7 @@ const files = [
   ['CropConfig', 'src/shared/Config/CropConfig.luau'],
   ['VariantConfig', 'src/shared/Config/VariantConfig.luau'],
   ['VariantRng', 'src/server/Services/VariantRng.luau'],
+  ['InventoryService', 'src/server/Services/InventoryService.luau'],
   ['CropService', 'src/server/Services/CropService.luau'],
 ];
 let source = fs.readFileSync('tests/roblox-mock.luau', 'utf8');

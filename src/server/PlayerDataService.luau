@@ -2,9 +2,15 @@
 
 local Players = game:GetService("Players")
 
+export type InventoryEntry = {
+    ItemId: string,
+    Variant: string,
+    Quantity: number,
+}
+
 export type PlayerData = {
     Coins: number,
-    Inventory: {},
+    Inventory: { InventoryEntry },
     Buildings: {},
 }
 
@@ -14,6 +20,18 @@ local MAX_SAFE_INTEGER = 9007199254740991
 local dataByPlayer: { [Player]: PlayerData } = {}
 local initialized = false
 local PlayerDataService = {}
+
+local function copyInventory(inventory: { InventoryEntry }): { InventoryEntry }
+    local result: { InventoryEntry } = {}
+    for _, entry in inventory do
+        table.insert(result, {
+            ItemId = entry.ItemId,
+            Variant = entry.Variant,
+            Quantity = entry.Quantity,
+        })
+    end
+    return result
+end
 
 local function createData(player: Player)
     if dataByPlayer[player] then
@@ -52,7 +70,7 @@ function PlayerDataService.Init()
 end
 
 -- Return a snapshot so callers cannot mutate the stored data.
--- Inventory and Buildings remain empty until their respective systems exist.
+-- Buildings remain empty until their system exists.
 function PlayerDataService.GetData(player: Player): PlayerData?
     local data = dataByPlayer[player]
     if not data then
@@ -61,9 +79,44 @@ function PlayerDataService.GetData(player: Player): PlayerData?
 
     return {
         Coins = data.Coins,
-        Inventory = table.clone(data.Inventory),
+        Inventory = copyInventory(data.Inventory),
         Buildings = table.clone(data.Buildings),
     }
+end
+
+function PlayerDataService.GetInventory(player: Player): { InventoryEntry }?
+    local data = dataByPlayer[player]
+    return if data then copyInventory(data.Inventory) else nil
+end
+
+-- Called only by server services after they validate the item definition.
+function PlayerDataService.AddInventoryItem(
+    player: Player,
+    itemId: string,
+    variant: string,
+    quantity: number
+): (boolean, string?)
+    if typeof(itemId) ~= "string" or itemId == ""
+        or typeof(variant) ~= "string" or variant == ""
+        or not isValidAmount(quantity) or quantity == 0 then
+        return false, "InvalidItem"
+    end
+
+    local data = dataByPlayer[player]
+    if not data then
+        return false, "DataNotFound"
+    end
+    for _, entry in data.Inventory do
+        if entry.ItemId == itemId and entry.Variant == variant then
+            if quantity > MAX_SAFE_INTEGER - entry.Quantity then
+                return false, "QuantityLimitExceeded"
+            end
+            entry.Quantity += quantity
+            return true, nil
+        end
+    end
+    table.insert(data.Inventory, { ItemId = itemId, Variant = variant, Quantity = quantity })
+    return true, nil
 end
 
 function PlayerDataService.GetCoins(player: Player): number?

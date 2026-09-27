@@ -61,10 +61,37 @@ for cycle = 1, 10 do
     assert(soil:GetAttribute("Variant") == nil)
     assert(soil:FindFirstChild("Carrot") == nil)
     assert(not CropService.Harvest(farmer, soil))
+    local inventory = InventoryService.GetInventory(farmer)
+    local entryCount = 0
+    for _, entry in inventory do
+        assert(entry.ItemId == "Carrot")
+        assert(VariantConfig[entry.Variant] ~= nil)
+        entryCount += entry.Quantity
+    end
+    assert(entryCount == cycle)
 end
 local planted, reason = CropService.Plant(farmer, soil)
 assert(not planted and reason == "NoSeeds")
 assert(PlayerDataService.GetCoins(farmer) == 100)
+local byVariant = {}
+for _, entry in InventoryService.GetInventory(farmer) do
+    byVariant[entry.Variant] = entry.Quantity
+end
+assert(byVariant.Golden == 4 and byVariant.Normal == 3 and byVariant.Rainbow == 3)
+assert(#InventoryService.GetInventory(farmer) == 3)
+assert(not InventoryService.AddCrop(farmer, "FakeCrop", "Normal", 1))
+assert(not InventoryService.AddCrop(farmer, "Carrot", "FakeVariant", 1))
+assert(not InventoryService.AddCrop(farmer, "Carrot", "Normal", 0))
+assert(not InventoryService.AddCrop(farmer, "Carrot", "Normal", -1))
+assert(not InventoryService.AddCrop(farmer, "Carrot", "Normal", 0/0))
+local snapshot = InventoryService.GetInventory(farmer)
+snapshot[1].Quantity = 999
+table.clear(snapshot)
+assert(#InventoryService.GetInventory(farmer) == 3)
+local fullSnapshot = PlayerDataService.GetData(farmer)
+fullSnapshot.Inventory[1].Quantity = 999
+assert(#PlayerDataService.GetData(farmer).Inventory == 3)
+assert(not InventoryService.AddCrop({ UserId = -1 }, "Carrot", "Normal", 1))
 
 -- Disconnect with growth timers still pending, then reuse the plot position.
 local owner = join(12)
@@ -79,6 +106,7 @@ local newSlot = PlotService.GetSlot(newcomer)
 assert(newSlot.Position.X == oldSlot.Position.X)
 advance(CropConfig.Carrot.GrowthTime)
 assert(CropService.GetSeeds(owner) == nil)
+assert(InventoryService.GetInventory(owner) == nil)
 assert(newSlot:GetAttribute("CropState") == "Empty")
 assert(newSlot:FindFirstChild("Carrot") == nil)
 assert(CropService.GetSeeds(newcomer) == CropConfig.Carrot.StartingSeeds)
@@ -86,4 +114,18 @@ local fleeting = join(14)
 leave(fleeting)
 advance(0)
 assert(CropService.GetSeeds(fleeting) == nil)
-print("PASS: 10 crop cycles, stages, prompts, ownership, distance, seeds, early/double harvest and stale timers")
+local full = join(15)
+advance(0)
+local fullSlot = PlotService.GetSlot(full)
+standAt(full, fullSlot.Position)
+assert(PlayerDataService.AddInventoryItem(full, "Carrot", "Normal", 9007199254740991))
+queueDraw(6) -- Normal
+assert(CropService.Plant(full, fullSlot))
+advance(CropConfig.Carrot.GrowthTime)
+local didHarvest, failure = CropService.Harvest(full, fullSlot)
+assert(not didHarvest and failure == "QuantityLimitExceeded")
+assert(fullSlot:GetAttribute("CropState") == "Ready")
+assert(fullSlot:GetAttribute("Variant") == "Normal")
+assert(fullSlot:FindFirstChild("Carrot") ~= nil)
+assert(InventoryService.GetInventory(full)[1].Quantity == 9007199254740991)
+print("PASS: 10 crop cycles, variant-preserving inventory, aggregation, validation, snapshots, cleanup and stale timers")
