@@ -1,24 +1,30 @@
-# Roblox Studio / local autosaves
-*.rbxl.lock
-*.rbxlx.lock
-*.autosave
-
-# Rojo / Roblox tooling outputs
-*.rbxm
-*.rbxmx
+# Roblox place/model files
 *.rbxl
 *.rbxlx
+*.rbxm
+*.rbxmx
 
-# Dependencies and caches
-node_modules/
-.pesde/
-.wally/
-.lune/
-.luau/
+# Rojo build outputs
+/build/
+*.rbxl.lock
 
-# Logs and temporary files
-*.log
-tmp/
-temp/
-.DS_Store
+# VS Code
+.vscode/
+
+# Windows
 Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Local tooling/cache
+.cache/

@@ -1,0 +1,1 @@
+print("Make a Ranch | Server iniciado")
