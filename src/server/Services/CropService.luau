@@ -7,6 +7,7 @@ local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlotService = require(script.Parent.PlotService)
 local VariantRng = require(script.Parent.VariantRng)
 local InventoryService = require(script.Parent.InventoryService)
+local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 
 -- This phase supports exactly one crop, selected from its configuration.
 local cropId, config = next(CropConfig)
@@ -89,6 +90,7 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     if not session or slot ~= session.Slot or not canInteract(player, session) then
         return false, "InvalidPlotOrDistance"
     end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     if session.Growth then
         return false, "Occupied"
     end

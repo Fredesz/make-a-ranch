@@ -25,8 +25,11 @@ local STARTING_COINS = 100
 local MAX_SAFE_INTEGER = 9007199254740991
 
 local dataByPlayer: { [Player]: PlayerData } = {}
+local readyByPlayer: { [Player]: boolean } = {}
+local loadGateEnabled = false
 local initialized = false
 local PlayerDataService = {}
+local beforeRemove: ((Player) -> ())? = nil
 
 local function copyInventory(inventory: { InventoryEntry }): { InventoryEntry }
     local result: { InventoryEntry } = {}
@@ -63,6 +66,7 @@ local function createData(player: Player)
         Inventory = {},
         Buildings = {},
     }
+    readyByPlayer[player] = not loadGateEnabled
 end
 
 local function isValidAmount(amount: number): boolean
@@ -81,7 +85,9 @@ function PlayerDataService.Init()
 
     Players.PlayerAdded:Connect(createData)
     Players.PlayerRemoving:Connect(function(player: Player)
+        if beforeRemove then beforeRemove(player) end
         dataByPlayer[player] = nil
+        readyByPlayer[player] = nil
     end)
 
     for _, player in Players:GetPlayers() do
@@ -89,8 +95,36 @@ function PlayerDataService.Init()
     end
 end
 
+function PlayerDataService.EnableLoadGate()
+    loadGateEnabled = true
+    for player in dataByPlayer do readyByPlayer[player] = false end
+end
+
+function PlayerDataService.SetReady(player: Player, ready: boolean)
+    if dataByPlayer[player] then readyByPlayer[player] = ready end
+end
+
+function PlayerDataService.IsReady(player: Player): boolean
+    return readyByPlayer[player] == true
+end
+
+function PlayerDataService.SetBeforeRemove(callback: (Player) -> ())
+    beforeRemove = callback
+end
+
+function PlayerDataService.LoadData(player: Player, snapshot: PlayerData): boolean
+    if not dataByPlayer[player] then return false end
+    dataByPlayer[player] = {
+        Coins = snapshot.Coins,
+        Inventory = copyInventory(snapshot.Inventory),
+        Buildings = copyBuildings(snapshot.Buildings),
+    }
+    return true
+end
+
 -- Return a snapshot so callers cannot mutate the stored data.
 function PlayerDataService.GetData(player: Player): PlayerData?
+    if not PlayerDataService.IsReady(player) then return nil end
     local data = dataByPlayer[player]
     if not data then
         return nil
@@ -117,6 +151,7 @@ function PlayerDataService.PurchaseBuilding(
     if not isValidAmount(price) then return false, "InvalidPrice" end
     local data = dataByPlayer[player]
     if not data then return false, "DataNotFound" end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     if data.Coins < price then return false, "InsufficientCoins" end
     data.Coins -= price
     table.insert(data.Buildings, {
@@ -129,6 +164,7 @@ function PlayerDataService.PurchaseBuilding(
 end
 
 function PlayerDataService.GetInventory(player: Player): { InventoryEntry }?
+    if not PlayerDataService.IsReady(player) then return nil end
     local data = dataByPlayer[player]
     return if data then copyInventory(data.Inventory) else nil
 end
@@ -150,6 +186,7 @@ function PlayerDataService.AddInventoryItem(
     if not data then
         return false, "DataNotFound"
     end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     for _, entry in data.Inventory do
         if entry.ItemId == itemId and entry.Variant == variant then
             if quantity > MAX_SAFE_INTEGER - entry.Quantity then
@@ -178,6 +215,7 @@ function PlayerDataService.SellInventoryItem(
     end
     local data = dataByPlayer[player]
     if not data then return false, "DataNotFound" end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     local index: number? = nil
     for i, entry in data.Inventory do
         if entry.ItemId == itemId and entry.Variant == variant then
@@ -200,6 +238,7 @@ function PlayerDataService.SellInventoryItem(
 end
 
 function PlayerDataService.GetCoins(player: Player): number?
+    if not PlayerDataService.IsReady(player) then return nil end
     local data = dataByPlayer[player]
     return if data then data.Coins else nil
 end
@@ -214,6 +253,7 @@ function PlayerDataService.AddCoins(player: Player, amount: number): (boolean, s
     if not data then
         return false, "DataNotFound"
     end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     if amount > MAX_SAFE_INTEGER - data.Coins then
         return false, "BalanceLimitExceeded"
     end
@@ -231,6 +271,7 @@ function PlayerDataService.RemoveCoins(player: Player, amount: number): (boolean
     if not data then
         return false, "DataNotFound"
     end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
     if amount > data.Coins then
         return false, "InsufficientCoins"
     end

@@ -1,4 +1,5 @@
 -- Test doubles cover only the APIs used by these services.
+local warn = function(...) print("WARN", ...) end
 local function signal()
     local callbacks = {}
     return {
@@ -92,11 +93,26 @@ function Instance.new(className)
 end
 local workspace = Instance.new("Workspace")
 local replicatedStorage = Instance.new("ReplicatedStorage")
+local saved = {}
+local fakeStore = {
+    GetAsync = function(self, key)
+        if self.FailRead then error("simulated read failure") end
+        return saved[key]
+    end,
+    UpdateAsync = function(_, key, transform)
+        saved[key] = transform(saved[key])
+        return saved[key]
+    end,
+}
+local DataStoreService = { GetDataStore = function() return fakeStore end }
+local RunService = { IsStudio = function() return false end }
 local Players = { PlayerAdded = signal(), PlayerRemoving = signal(), list = {} }
 function Players:GetPlayers() return table.clone(self.list) end
-local game = { GetService = function(_, name)
+local game = { GameId = 123, BindToClose = function() end, GetService = function(_, name)
     if name == "Players" then return Players end
     if name == "ReplicatedStorage" then return replicatedStorage end
+    if name == "DataStoreService" then return DataStoreService end
+    if name == "RunService" then return RunService end
     return {}
 end }
 local now = 0

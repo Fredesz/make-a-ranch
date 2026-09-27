@@ -29,12 +29,13 @@ local function intersects(x: number, z: number, width: number, depth: number,
         and math.abs(z - otherZ) * 2 < depth + otherDepth
 end
 
-function BuildService.Place(
+local function place(
     player: Player,
     buildingId: string,
     gridX: number,
     gridZ: number,
-    rotation: number
+    rotation: number,
+    restoring: boolean
 ): (boolean, string?)
     local slot = PlotService.GetSlot(player)
     if not slot or not PlotService.OwnsSlot(player, slot) then
@@ -71,13 +72,15 @@ function BuildService.Place(
             end
         end
     end
-    local bought, reason = PlayerDataService.PurchaseBuilding(player, {
-        BuildingId = buildingId,
-        GridX = gridX,
-        GridZ = gridZ,
-        Rotation = rotation,
-    }, definition.Price)
-    if not bought then return false, reason end
+    if not restoring then
+        local bought, reason = PlayerDataService.PurchaseBuilding(player, {
+            BuildingId = buildingId,
+            GridX = gridX,
+            GridZ = gridZ,
+            Rotation = rotation,
+        }, definition.Price)
+        if not bought then return false, reason end
+    end
 
     local part = Instance.new("Part")
     part.Name = buildingId
@@ -106,6 +109,23 @@ function BuildService.Place(
         assert(ChickenService.RegisterCoop(player, part), "Chicken coop registration failed")
     end
     return true, nil
+end
+
+function BuildService.Place(player: Player, buildingId: string,
+    gridX: number, gridZ: number, rotation: number): (boolean, string?)
+    return place(player, buildingId, gridX, gridZ, rotation, false)
+end
+
+function BuildService.Restore(player: Player): number
+    local entries = PlayerDataService.GetBuildings(player)
+    if not entries then return 0 end
+    local restored = 0
+    for _, entry in entries do
+        local ok = place(player, entry.BuildingId, entry.GridX, entry.GridZ,
+            entry.Rotation, true)
+        if ok then restored += 1 end
+    end
+    return restored
 end
 
 function BuildService.Init()
