@@ -6,6 +6,7 @@ local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 local PlotService = require(script.Parent.PlotService)
 local CropService = require(script.Parent.CropService)
+local ChickenService = require(script.Parent.ChickenService)
 
 local initialized = false
 local BuildService = {}
@@ -41,6 +42,9 @@ function BuildService.Place(
     end
     local definition = if typeof(buildingId) == "string" then BuildingConfig[buildingId] else nil
     if not definition then return false, "UnknownBuilding" end
+    if buildingId == "ChickenCoop" and ChickenService.GetCoop(player) then
+        return false, "AlreadyOwned"
+    end
     if not wholeGridCoordinate(gridX) or not wholeGridCoordinate(gridZ)
         or typeof(rotation) ~= "number" or rotation ~= rotation
         or rotation % 90 ~= 0 or rotation < 0 or rotation >= 360 then
@@ -98,6 +102,8 @@ function BuildService.Place(
         fieldSlot:SetAttribute("FieldSlot", true)
         fieldSlot.Parent = model
         assert(CropService.RegisterFieldSlot(player, fieldSlot), "Field slot registration failed")
+    elseif buildingId == "ChickenCoop" then
+        assert(ChickenService.RegisterCoop(player, part), "Chicken coop registration failed")
     end
     return true, nil
 end
@@ -106,6 +112,7 @@ function BuildService.Init()
     if initialized then return end
     initialized = true
     PlotService.Init()
+    ChickenService.Init()
     local remote = ReplicatedStorage:FindFirstChild("BuildRequest")
     if not remote then
         remote = Instance.new("RemoteEvent")

@@ -23,6 +23,13 @@ local BuildingConfig: { [string]: BuildingDefinition } = {
         Height = 0.5,
         Color = Color3.fromRGB(90, 125, 55),
     },
+    ChickenCoop = {
+        DisplayName = "Chicken Coop",
+        Price = 70,
+        Footprint = Vector2.new(6, 6),
+        Height = 3,
+        Color = Color3.fromRGB(190, 145, 90),
+    },
 }
 
 return BuildingConfig

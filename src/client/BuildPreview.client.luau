@@ -77,6 +77,9 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
     elseif input.KeyCode == Enum.KeyCode.F then
         selectedBuilding = "SmallField"
         active = not active
+    elseif input.KeyCode == Enum.KeyCode.C then
+        selectedBuilding = "ChickenCoop"
+        active = not active
     elseif input.KeyCode == Enum.KeyCode.R and active then
         rotation = (rotation + 90) % 360
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and active and valid then
