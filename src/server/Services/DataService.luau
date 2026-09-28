@@ -13,6 +13,7 @@ local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 local BuildService = require(script.Parent.BuildService)
 local CropService = require(script.Parent.CropService)
+local ChickenService = require(script.Parent.ChickenService)
 
 local MAX_SAFE_INTEGER = 9007199254740991
 local store: GlobalDataStore? = nil
@@ -43,11 +44,17 @@ end
 local function sanitize(raw: any): PlayerDataService.PlayerData?
     if typeof(raw) ~= "table" or not validWhole(raw.Coins) then return nil end
     if raw.Seeds ~= nil and not validWhole(raw.Seeds) then return nil end
+    if raw.EggReadyAt ~= nil and not validWhole(raw.EggReadyAt) then return nil end
+    if raw.ActiveCrops ~= nil and typeof(raw.ActiveCrops) ~= "table" then
+        return nil
+    end
     local data: PlayerDataService.PlayerData = {
         Coins = raw.Coins,
         Seeds = if raw.Seeds == nil then CropConfig.Carrot.StartingSeeds else raw.Seeds,
         Inventory = {},
         Buildings = {},
+        ActiveCrops = {},
+        EggReadyAt = raw.EggReadyAt,
     }
     if typeof(raw.Inventory) == "table" then
         for _, entry in raw.Inventory do
@@ -83,6 +90,24 @@ local function sanitize(raw: any): PlayerDataService.PlayerData?
             end
         end
     end
+    local seen: { [string]: boolean } = {}
+    for _, entry in raw.ActiveCrops or {} do
+        if #data.ActiveCrops >= 64 then break end
+        if typeof(entry) == "table" and typeof(entry.SlotId) == "string"
+            and (entry.SlotId == "Main" or string.match(entry.SlotId, "^Field_%-?%d+_%-?%d+$"))
+            and not seen[entry.SlotId]
+            and typeof(entry.CropId) == "string" and CropConfig[entry.CropId]
+            and typeof(entry.Variant) == "string" and VariantConfig[entry.Variant]
+            and validWhole(entry.ReadyAt) then
+            seen[entry.SlotId] = true
+            table.insert(data.ActiveCrops, {
+                SlotId = entry.SlotId,
+                CropId = entry.CropId,
+                ReadyAt = entry.ReadyAt,
+                Variant = entry.Variant,
+            })
+        end
+    end
     return data
 end
 
@@ -102,6 +127,8 @@ function DataService.Load(player: Player): (boolean, string?)
             return false, "PlayerLeftDuringLoad"
         end
         BuildService.Restore(player)
+        CropService.Restore(player, data.ActiveCrops)
+        if data.EggReadyAt then ChickenService.RestoreEgg(player, data.EggReadyAt) end
     end
     PlayerDataService.SetReady(player, true)
     CropService.RefreshSeeds(player)

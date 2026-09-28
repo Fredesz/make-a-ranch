@@ -14,7 +14,8 @@ local cropId, config = next(CropConfig)
 assert(cropId ~= nil and config ~= nil, "CropConfig must contain one crop")
 assert(next(CropConfig, cropId) == nil, "Phase 3 supports exactly one crop")
 
-type Growth = { Visual: Part, StartedAt: number, Variant: string? }
+type SavedCrop = PlayerDataService.ActiveCrop
+type Growth = { Visual: Part, ReadyAt: number, Variant: string }
 type Session = {
     Slot: Part,
     Growth: Growth?,
@@ -27,6 +28,10 @@ local fieldSessions: { [Player]: { [Part]: Session } } = {}
 local initialized = false
 local CropService = {}
 
+local function slotId(slot: Part): string
+    return if slot:GetAttribute("FieldSlot") then slot:GetAttribute("SlotId") else "Main"
+end
+
 local function getSession(player: Player, slot: Instance): Session?
     local main = sessions[player]
     if main and main.Slot == slot then return main end
@@ -36,7 +41,7 @@ end
 
 local function updatePrompt(player: Player, session: Session)
     local growth = session.Growth
-    local ready = growth ~= nil and os.clock() - growth.StartedAt >= config.GrowthTime
+    local ready = growth ~= nil and os.time() >= growth.ReadyAt
     local seeds = PlayerDataService.GetSeeds(player) or 0
     session.Slot:SetAttribute("CropState", if growth then (if ready then "Ready" else "Growing") else "Empty")
     session.Slot:SetAttribute("SeedsRemaining", seeds)
@@ -103,7 +108,17 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     visual.Anchored = true
     visual.CanCollide = false
     visual.Color = config.GrowingColor
-    local growth: Growth = { Visual = visual, StartedAt = os.clock(), Variant = nil }
+    local growth: Growth = {
+        Visual = visual,
+        ReadyAt = os.time() + config.GrowthTime,
+        Variant = VariantRng.Roll(),
+    }
+    assert(PlayerDataService.SetActiveCrop(player, {
+        SlotId = slotId(session.Slot),
+        CropId = cropId,
+        ReadyAt = growth.ReadyAt,
+        Variant = growth.Variant,
+    }), "Active crop could not be recorded")
     for _, fieldSession in fieldSessions[player] or {} do
         updatePrompt(player, fieldSession)
     end
@@ -112,29 +127,8 @@ function CropService.Plant(player: Player, slot: Instance): (boolean, string?)
     end
     session.Growth = growth
     session.Slot:SetAttribute("CropId", cropId)
-    setStage(session, growth, 1)
     visual.Parent = session.Slot
-    updatePrompt(player, session)
-
-    -- Identity checks stop old timers from touching another crop or a released plot.
-    for stage = 2, #config.StageSizes do
-        task.delay(config.GrowthTime * (stage - 1) / #config.StageSizes, function()
-            if getSession(player, session.Slot) == session and session.Growth == growth
-                and PlotService.OwnsSlot(player, session.Slot) then
-                setStage(session, growth, stage)
-            end
-        end)
-    end
-    task.delay(config.GrowthTime, function()
-        if getSession(player, session.Slot) == session and session.Growth == growth
-            and PlotService.OwnsSlot(player, session.Slot) then
-            local variantId = VariantRng.Roll()
-            growth.Variant = variantId
-            session.Slot:SetAttribute("Variant", variantId)
-            visual.Color = VariantConfig[variantId].ReadyColor
-            updatePrompt(player, session)
-        end
-    end)
+    CropService.ResumeGrowth(player, session, growth)
     return true, nil
 end
 
@@ -148,7 +142,7 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?,
         return false, "Empty"
     end
     -- Never trust replicated attributes or prompt state to determine readiness.
-    if os.clock() - growth.StartedAt < config.GrowthTime or growth.Variant == nil then
+    if os.time() < growth.ReadyAt then
         return false, "NotReady"
     end
 
@@ -156,6 +150,8 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?,
     if not added then
         return false, reason
     end
+    assert(PlayerDataService.ClearActiveCrop(player, slotId(session.Slot)),
+        "Harvested crop was not recorded")
 
     session.Growth = nil
     growth.Visual:Destroy()
@@ -164,6 +160,41 @@ function CropService.Harvest(player: Player, slot: Instance): (boolean, string?,
     session.Slot:SetAttribute("Variant", nil)
     updatePrompt(player, session)
     return true, cropId, growth.Variant
+end
+
+function CropService.ResumeGrowth(player: Player, session: Session, growth: Growth)
+    local now = os.time()
+    local plantedAt = growth.ReadyAt - config.GrowthTime
+    local stage = math.clamp(math.floor((now - plantedAt) * #config.StageSizes
+        / config.GrowthTime) + 1, 1, #config.StageSizes)
+    setStage(session, growth, stage)
+    if now >= growth.ReadyAt then
+        session.Slot:SetAttribute("Variant", growth.Variant)
+        growth.Visual.Color = VariantConfig[growth.Variant].ReadyColor
+    end
+    updatePrompt(player, session)
+
+    -- Identity checks stop old timers from touching another crop or a released plot.
+    for nextStage = stage + 1, #config.StageSizes do
+        local stageAt = plantedAt + config.GrowthTime * (nextStage - 1)
+            / #config.StageSizes
+        task.delay(math.max(0, stageAt - now), function()
+            if getSession(player, session.Slot) == session and session.Growth == growth
+                and PlotService.OwnsSlot(player, session.Slot) then
+                setStage(session, growth, nextStage)
+            end
+        end)
+    end
+    if now < growth.ReadyAt then
+        task.delay(growth.ReadyAt - now, function()
+            if getSession(player, session.Slot) == session and session.Growth == growth
+                and PlotService.OwnsSlot(player, session.Slot) then
+                session.Slot:SetAttribute("Variant", growth.Variant)
+                growth.Visual.Color = VariantConfig[growth.Variant].ReadyColor
+                updatePrompt(player, session)
+            end
+        end)
+    end
 end
 
 local function createSlotSession(player: Player, slot: Part): Session
@@ -210,6 +241,36 @@ end
 
 function CropService.EnsureSession(player: Player)
     createSession(player)
+end
+
+function CropService.Restore(player: Player, saved: { SavedCrop })
+    for _, entry in saved do
+        if entry.CropId ~= cropId then continue end
+        local session = if entry.SlotId == "Main" then sessions[player] else nil
+        if not session then
+            for _, field in fieldSessions[player] or {} do
+                if slotId(field.Slot) == entry.SlotId then
+                    session = field
+                    break
+                end
+            end
+        end
+        if not session or session.Growth then continue end
+        local visual = Instance.new("Part")
+        visual.Name = cropId
+        visual.Anchored = true
+        visual.CanCollide = false
+        visual.Color = config.GrowingColor
+        visual.Parent = session.Slot
+        local growth: Growth = {
+            Visual = visual,
+            ReadyAt = entry.ReadyAt,
+            Variant = entry.Variant,
+        }
+        session.Growth = growth
+        session.Slot:SetAttribute("CropId", cropId)
+        CropService.ResumeGrowth(player, session, growth)
+    end
 end
 
 function CropService.RegisterFieldSlot(player: Player, slot: Part): boolean

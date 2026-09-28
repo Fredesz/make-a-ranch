@@ -184,7 +184,10 @@ local game = { GameId = 123, BindToClose = function() end, GetService = function
 end }
 local now = 0
 local scheduled = {}
-local os = { clock = function() return now end }
+local os = {
+    clock = function() return now end,
+    time = function() return math.floor(1700000000 + now) end,
+}
 local task = {}
 function task.delay(seconds, callback)
     table.insert(scheduled, { At = now + seconds, Callback = callback })

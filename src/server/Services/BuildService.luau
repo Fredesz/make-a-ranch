@@ -103,6 +103,7 @@ local function place(
             (part.Size.Y + fieldSlot.Size.Y) / 2, 0)
         fieldSlot.Color = slot.Color
         fieldSlot:SetAttribute("FieldSlot", true)
+        fieldSlot:SetAttribute("SlotId", string.format("Field_%d_%d", gridX, gridZ))
         fieldSlot.Parent = model
         assert(CropService.RegisterFieldSlot(player, fieldSlot), "Field slot registration failed")
     elseif buildingId == "ChickenCoop" then

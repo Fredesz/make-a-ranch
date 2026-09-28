@@ -94,7 +94,8 @@ de comprobación de Rojo; el gameplay no depende de él.
   `Buildings`. Entrega copias al consultar datos y aplica cambios económicos.
 - `DataService` valida, carga y guarda esos datos en el DataStore configurado
   por `DataConfig`. Los guardados antiguos sin `Seeds` reciben la cantidad
-  inicial de `CropConfig.Carrot.StartingSeeds`.
+  inicial de `CropConfig.Carrot.StartingSeeds`. También restaura cultivos
+  activos y el momento de producción del próximo huevo.
 - `CropService` controla plantación, crecimiento, variantes listas para cosecha
   y consumo de semillas. Por ahora admite **exactamente un cultivo**.
 - `SeedShopService`, `SellService` y `BuildService` verifican en servidor
@@ -122,8 +123,8 @@ servicios durante el inicio. No hace falta crearlos manualmente en Studio.
    tras el tiempo de `AnimalConfig.Chicken.ProductionTime`, recoge Egg y
    véndelo en la estación azul.
 7. Detén Play y vuelve a entrar. Comprueba que Coins, semillas, inventario y
-   edificios se restauraron. Los cultivos que estaban creciendo y el
-   temporizador de Egg **no** se guardan todavía.
+   edificios se restauraron. También deben conservarse los cultivos activos
+   y el tiempo restante para el próximo Egg.
 
 Barn es una construcción colocable sin producción propia en este MVP. El
 inventario del HUD muestra un número limitado de entradas y el puesto vende

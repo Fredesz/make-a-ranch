@@ -20,6 +20,8 @@ function HudService.Init()
             Inventory = data.Inventory,
             Buildings = data.Buildings,
             Seeds = data.Seeds,
+            ActiveCrops = data.ActiveCrops,
+            EggReadyAt = data.EggReadyAt,
         }
     end
     snapshot.Parent = ReplicatedStorage

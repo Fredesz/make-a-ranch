@@ -4,10 +4,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AnimalConfig = require(ReplicatedStorage.Shared.Config.AnimalConfig)
 local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
+local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 local InventoryService = require(script.Parent.InventoryService)
 local PlotService = require(script.Parent.PlotService)
 
-type CoopState = { Coop: Part, Hen: Part, Egg: Part? }
+type CoopState = { Coop: Part, Hen: Part, Egg: Part?, ReadyAt: number }
 local states: { [Player]: CoopState } = {}
 local initialized = false
 local ChickenService = {}
@@ -22,11 +23,10 @@ local function nearCoop(player: Player, coop: Part): boolean
         and (root.Position - coop.Position).Magnitude <= PlotConfig.SellInteractionDistance
 end
 
-local function scheduleEgg(player: Player, state: CoopState)
-    task.delay(chicken.ProductionTime, function()
-        if states[player] ~= state or state.Egg or not state.Coop:IsDescendantOf(workspace) then
-            return
-        end
+local function spawnEgg(player: Player, state: CoopState)
+    if states[player] ~= state or state.Egg or not state.Coop:IsDescendantOf(workspace) then
+        return
+    end
         local egg = Instance.new("Part")
         egg.Name = chicken.ProductId
         egg.Anchored = true
@@ -50,6 +50,12 @@ local function scheduleEgg(player: Player, state: CoopState)
             end
         end)
         prompt.Parent = egg
+end
+
+local function scheduleEgg(player: Player, state: CoopState)
+    local readyAt = state.ReadyAt
+    task.delay(math.max(0, readyAt - os.time()), function()
+        if state.ReadyAt == readyAt then spawnEgg(player, state) end
     end)
 end
 
@@ -63,6 +69,9 @@ function ChickenService.Collect(player: Player, coop: Instance): (boolean, strin
     if not added then return false, reason end
     state.Egg:Destroy()
     state.Egg = nil
+    state.ReadyAt = os.time() + chicken.ProductionTime
+    assert(PlayerDataService.SetEggReadyAt(player, state.ReadyAt),
+        "Egg production time could not be recorded")
     scheduleEgg(player, state)
     return true, nil
 end
@@ -83,8 +92,15 @@ function ChickenService.RegisterCoop(player: Player, coop: Part): boolean
         coop.Size.Y / 2 + hen.Size.Y / 2, -1)
     hen.Color = chicken.Color
     hen.Parent = coop
-    local state: CoopState = { Coop = coop, Hen = hen, Egg = nil }
+    local state: CoopState = {
+        Coop = coop,
+        Hen = hen,
+        Egg = nil,
+        ReadyAt = PlayerDataService.GetEggReadyAt(player) or os.time() + chicken.ProductionTime,
+    }
     states[player] = state
+    assert(PlayerDataService.SetEggReadyAt(player, state.ReadyAt),
+        "Egg production time could not be recorded")
     scheduleEgg(player, state)
     return true
 end
@@ -92,6 +108,20 @@ end
 function ChickenService.GetCoop(player: Player): Part?
     local state = states[player]
     return if state then state.Coop else nil
+end
+
+function ChickenService.GetReadyAt(player: Player): number?
+    local state = states[player]
+    return if state then state.ReadyAt else nil
+end
+
+function ChickenService.RestoreEgg(player: Player, readyAt: number)
+    local state = states[player]
+    if not state then return end
+    state.ReadyAt = readyAt
+    assert(PlayerDataService.SetEggReadyAt(player, readyAt),
+        "Egg production time could not be restored")
+    scheduleEgg(player, state)
 end
 
 function ChickenService.Init()

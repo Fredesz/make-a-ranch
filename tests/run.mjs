@@ -33,6 +33,8 @@ source += '\nfor _, player in Players:GetPlayers() do leave(player) end\n';
 source += fs.readFileSync('tests/build.spec.luau', 'utf8');
 source += fs.readFileSync('tests/chicken.spec.luau', 'utf8');
 source += fs.readFileSync('tests/data.spec.luau', 'utf8');
+source += '\nfor _, player in Players:GetPlayers() do leave(player) end\n';
+source += fs.readFileSync('tests/production-persistence.spec.luau', 'utf8');
 fs.mkdirSync('.cache/tests', { recursive: true });
 const bundle = '.cache/tests/session.luau';
 fs.writeFileSync(bundle, source);

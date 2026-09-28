@@ -10,11 +10,20 @@ export type InventoryEntry = {
     Quantity: number,
 }
 
+export type ActiveCrop = {
+    SlotId: string,
+    CropId: string,
+    ReadyAt: number,
+    Variant: string,
+}
+
 export type PlayerData = {
     Coins: number,
     Seeds: number,
     Inventory: { InventoryEntry },
     Buildings: { BuildingEntry },
+    ActiveCrops: { ActiveCrop },
+    EggReadyAt: number?,
 }
 
 export type BuildingEntry = {
@@ -59,6 +68,19 @@ local function copyBuildings(buildings: { BuildingEntry }): { BuildingEntry }
     return result
 end
 
+local function copyCrops(crops: { ActiveCrop }): { ActiveCrop }
+    local result: { ActiveCrop } = {}
+    for _, entry in crops do
+        table.insert(result, {
+            SlotId = entry.SlotId,
+            CropId = entry.CropId,
+            ReadyAt = entry.ReadyAt,
+            Variant = entry.Variant,
+        })
+    end
+    return result
+end
+
 local function createData(player: Player)
     if dataByPlayer[player] then
         return
@@ -69,6 +91,8 @@ local function createData(player: Player)
         Seeds = CropConfig.Carrot.StartingSeeds,
         Inventory = {},
         Buildings = {},
+        ActiveCrops = {},
+        EggReadyAt = nil,
     }
     readyByPlayer[player] = not loadGateEnabled
 end
@@ -123,6 +147,8 @@ function PlayerDataService.LoadData(player: Player, snapshot: PlayerData): boole
         Seeds = snapshot.Seeds,
         Inventory = copyInventory(snapshot.Inventory),
         Buildings = copyBuildings(snapshot.Buildings),
+        ActiveCrops = copyCrops(snapshot.ActiveCrops),
+        EggReadyAt = snapshot.EggReadyAt,
     }
     return true
 end
@@ -140,7 +166,51 @@ function PlayerDataService.GetData(player: Player): PlayerData?
         Seeds = data.Seeds,
         Inventory = copyInventory(data.Inventory),
         Buildings = copyBuildings(data.Buildings),
+        ActiveCrops = copyCrops(data.ActiveCrops),
+        EggReadyAt = data.EggReadyAt,
     }
+end
+
+function PlayerDataService.GetActiveCrops(player: Player): { ActiveCrop }?
+    local data = dataByPlayer[player]
+    return if data then copyCrops(data.ActiveCrops) else nil
+end
+
+function PlayerDataService.SetActiveCrop(player: Player, crop: ActiveCrop): boolean
+    local data = dataByPlayer[player]
+    if not data or not PlayerDataService.IsReady(player) then return false end
+    for index, entry in data.ActiveCrops do
+        if entry.SlotId == crop.SlotId then
+            data.ActiveCrops[index] = table.clone(crop)
+            return true
+        end
+    end
+    table.insert(data.ActiveCrops, table.clone(crop))
+    return true
+end
+
+function PlayerDataService.ClearActiveCrop(player: Player, slotId: string): boolean
+    local data = dataByPlayer[player]
+    if not data or not PlayerDataService.IsReady(player) then return false end
+    for index, entry in data.ActiveCrops do
+        if entry.SlotId == slotId then
+            table.remove(data.ActiveCrops, index)
+            return true
+        end
+    end
+    return false
+end
+
+function PlayerDataService.GetEggReadyAt(player: Player): number?
+    local data = dataByPlayer[player]
+    return if data then data.EggReadyAt else nil
+end
+
+function PlayerDataService.SetEggReadyAt(player: Player, readyAt: number): boolean
+    local data = dataByPlayer[player]
+    if not data or not isValidAmount(readyAt) then return false end
+    data.EggReadyAt = readyAt
+    return true
 end
 
 function PlayerDataService.GetSeeds(player: Player): number?
