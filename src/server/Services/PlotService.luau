@@ -14,7 +14,7 @@ local function updateSign(model: Model, index: number, player: Player)
     assert(sign, "The plot owner sign is missing")
     for _, descendant in sign:GetDescendants() do
         if descendant:IsA("TextLabel") and descendant.Name == "OwnerText" then
-            descendant.Text = string.format("Parcela %d\n%s\n@%s", index, player.DisplayName, player.Name)
+            descendant.Text = string.format("Parcela %d\n%s", index, player.DisplayName)
             descendant.TextScaled = true
         end
     end

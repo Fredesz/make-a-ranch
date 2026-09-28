@@ -6,6 +6,9 @@
       "$path": "src/world",
       "$ignoreUnknownInstances": true
     },
+    "Lighting": {
+      "$path": "src/lighting"
+    },
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"

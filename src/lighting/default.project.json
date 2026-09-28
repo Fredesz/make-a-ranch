@@ -1,0 +1,56 @@
+{
+  "name": "RanchLighting",
+  "tree": {
+    "$className": "Lighting",
+    "$properties": {
+      "Technology": "Future",
+      "ClockTime": 15.5,
+      "Brightness": 2,
+      "ExposureCompensation": 0,
+      "Ambient": [0.2941, 0.3373, 0.3961],
+      "OutdoorAmbient": [0.4784, 0.5333, 0.6],
+      "ColorShift_Top": [1, 0.8, 0.651],
+      "ColorShift_Bottom": [0.4, 0.5176, 0.6],
+      "EnvironmentDiffuseScale": 0.3,
+      "EnvironmentSpecularScale": 0.15,
+      "GlobalShadows": true,
+      "ShadowSoftness": 0.35,
+      "GeographicLatitude": 35
+    },
+    "RanchAtmosphere": {
+      "$className": "Atmosphere",
+      "$properties": {
+      "Density": 0.035,
+      "Offset": 0,
+      "Color": [0.7451, 0.8235, 0.8706],
+      "Decay": [0.9333, 0.7451, 0.6118],
+      "Glare": 0,
+      "Haze": 0.3
+      }
+    },
+    "RanchBloom": {
+      "$className": "BloomEffect",
+      "$properties": {
+        "Intensity": 0.06,
+        "Size": 18,
+        "Threshold": 2
+      }
+    },
+    "RanchColorGrading": {
+      "$className": "ColorCorrectionEffect",
+      "$properties": {
+        "Brightness": 0,
+        "Contrast": 0.04,
+        "Saturation": 0.05,
+        "TintColor": [1, 0.9608, 0.9176]
+      }
+    },
+    "RanchSunRays": {
+      "$className": "SunRaysEffect",
+      "$properties": {
+        "Intensity": 0.015,
+        "Spread": 0.65
+      }
+    }
+  }
+}
