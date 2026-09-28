@@ -76,6 +76,16 @@ function SeedShopService.Init()
     if initialized then return end
     initialized = true
     CropService.Init()
+    local remote = Instance.new("RemoteEvent")
+    remote.Name = "SeedShopRequest"
+    remote.OnServerEvent:Connect(function(player: Player)
+        local ok, reason = SeedShopService.Buy(player, "Carrot", 1)
+        local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+        if notice and notice:IsA("RemoteEvent") then
+            notice:FireClient(player, if ok then "Carrot seed purchased!" else "Seed purchase failed", reason)
+        end
+    end)
+    remote.Parent = ReplicatedStorage
     Players.PlayerAdded:Connect(function(player: Player)
         task.defer(function()
             if player.Parent == Players then createPad(player) end

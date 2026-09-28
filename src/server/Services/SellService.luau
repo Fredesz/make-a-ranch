@@ -92,6 +92,17 @@ function SellService.Init()
     if initialized then return end
     initialized = true
     PlotService.Init()
+    local remote = Instance.new("RemoteEvent")
+    remote.Name = "SellRequest"
+    remote.OnServerEvent:Connect(function(player: Player, itemId: string,
+        variant: string, quantity: number)
+        local ok, reason = SellService.Sell(player, itemId, variant, quantity)
+        local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+        if notice and notice:IsA("RemoteEvent") then
+            notice:FireClient(player, if ok then "Items sold!" else "Sale failed", reason)
+        end
+    end)
+    remote.Parent = ReplicatedStorage
     Players.PlayerAdded:Connect(function(player: Player)
         task.defer(function()
             if player.Parent == Players then createPad(player) end

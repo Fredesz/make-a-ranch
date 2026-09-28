@@ -110,12 +110,14 @@ servicios durante el inicio. No hace falta crearlos manualmente en Studio.
 
 1. Entra con Play y verifica que recibes una parcela con tu nombre en el
    cartel. El máximo previsto es de ocho jugadores.
-2. Ve a la estación amarilla de tu parcela y compra una Carrot Seed con su
-   prompt. Comprueba Coins y Seeds en el HUD.
+2. Abre TIENDA y compra una Carrot Seed cerca de la estación amarilla de tu
+   parcela. También puedes usar el prompt de la estación. Comprueba Coins y
+   Seeds en el HUD.
 3. Usa el prompt del suelo marrón para plantar. Espera el tiempo configurado
    en `CropConfig` y cosecha. El producto entra en Inventory con una variante.
-4. Ve a la estación azul y vende la primera pila disponible. Comprueba que
-   baja Inventory y suben Coins. El puesto acepta Carrot y Egg.
+4. Abre BOLSA, selecciona una pila y véndela cerca de la estación azul.
+   También puedes usar el prompt, que vende la primera pila disponible.
+   Comprueba que baja Inventory y suben Coins. Se aceptan Carrot y Egg.
 5. Usa los botones del HUD para previsualizar una construcción, `R` para girar
    y clic para colocarla. También puedes usar `B` (Barn), `F` (Small Field)
    o `C` (Chicken Coop).
@@ -126,9 +128,9 @@ servicios durante el inicio. No hace falta crearlos manualmente en Studio.
    edificios se restauraron. También deben conservarse los cultivos activos
    y el tiempo restante para el próximo Egg.
 
-Barn es una construcción colocable sin producción propia en este MVP. El
-inventario del HUD muestra un número limitado de entradas y el puesto vende
-la primera pila compatible; son limitaciones conocidas, no fallos de carga.
+Barn es una construcción colocable sin producción propia en este MVP. BOLSA
+permite ver todas las pilas, mientras que el prompt físico del puesto vende la
+primera compatible.
 
 ## 5. Pruebas automáticas y diagnóstico
 
