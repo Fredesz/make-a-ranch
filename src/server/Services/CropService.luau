@@ -180,10 +180,22 @@ local function createSlotSession(player: Player, slot: Part, balance: { Count: n
         Connection = nil,
     }
     session.Connection = prompt.Triggered:Connect(function(actor: Player)
+        local ok: boolean
+        local reason: string?
+        local message: string
         if session.Growth then
-            CropService.Harvest(actor, slot)
+            local harvested, harvestReason, variant = CropService.Harvest(actor, slot)
+            ok = harvested
+            reason = harvestReason
+            message = if harvested then "Harvested " .. (variant or "") .. " Carrot!"
+                else "Harvest failed"
         else
-            CropService.Plant(actor, slot)
+            ok, reason = CropService.Plant(actor, slot)
+            message = if ok then "Carrot planted!" else "Planting failed"
+        end
+        local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+        if notice and notice:IsA("RemoteEvent") then
+            notice:FireClient(actor, message, reason)
         end
     end)
     updatePrompt(session)

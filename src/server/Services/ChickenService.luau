@@ -43,7 +43,11 @@ local function scheduleEgg(player: Player, state: CoopState)
         prompt.MaxActivationDistance = PlotConfig.SellInteractionDistance
         prompt.RequiresLineOfSight = false
         prompt.Triggered:Connect(function(actor: Player)
-            ChickenService.Collect(actor, state.Coop)
+            local ok, reason = ChickenService.Collect(actor, state.Coop)
+            local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+            if notice and notice:IsA("RemoteEvent") then
+                notice:FireClient(actor, if ok then "Egg collected!" else "Collection failed", reason)
+            end
         end)
         prompt.Parent = egg
     end)

@@ -68,7 +68,12 @@ local function createPad(player: Player)
     prompt.MaxActivationDistance = PlotConfig.SellInteractionDistance
     prompt.RequiresLineOfSight = false
     prompt.Triggered:Connect(function(actor: Player)
-        if actor == player then SeedShopService.Buy(actor, "Carrot", 1) end
+        if actor ~= player then return end
+        local ok, reason = SeedShopService.Buy(actor, "Carrot", 1)
+        local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+        if notice and notice:IsA("RemoteEvent") then
+            notice:FireClient(actor, if ok then "Carrot seed purchased!" else "Seed purchase failed", reason)
+        end
     end)
     prompt.Parent = pad
 end

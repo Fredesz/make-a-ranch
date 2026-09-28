@@ -11,6 +11,12 @@ local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
 local BuildingConfig = require(ReplicatedStorage.Shared.Config.BuildingConfig)
 local selectedBuilding = "Barn"
 local remote = ReplicatedStorage:WaitForChild("BuildRequest") :: RemoteEvent
+local selection = Instance.new("BindableEvent")
+selection.Name = "BuildSelection"
+selection.Parent = script.Parent
+local modeChanged = Instance.new("BindableEvent")
+modeChanged.Name = "BuildModeChanged"
+modeChanged.Parent = script.Parent
 
 local preview = Instance.new("Part")
 preview.Name = "BarnPreview"
@@ -28,6 +34,15 @@ local valid = false
 local rotation = 0
 local gridX = 0
 local gridZ = 0
+
+local function setMode(buildingId: string)
+    if not BuildingConfig[buildingId] then return end
+    active = if selectedBuilding == buildingId then not active else true
+    selectedBuilding = buildingId
+    modeChanged:Fire(if active then buildingId else nil)
+end
+
+selection.Event:Connect(setMode)
 
 local function overlaps(x: number, z: number, width: number, depth: number,
     other: BasePart): boolean
@@ -72,14 +87,11 @@ end)
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.B then
-        selectedBuilding = "Barn"
-        active = not active
+        setMode("Barn")
     elseif input.KeyCode == Enum.KeyCode.F then
-        selectedBuilding = "SmallField"
-        active = not active
+        setMode("SmallField")
     elseif input.KeyCode == Enum.KeyCode.C then
-        selectedBuilding = "ChickenCoop"
-        active = not active
+        setMode("ChickenCoop")
     elseif input.KeyCode == Enum.KeyCode.R and active then
         rotation = (rotation + 90) % 360
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and active and valid then
@@ -90,6 +102,7 @@ end)
 remote.OnClientEvent:Connect(function(ok: boolean, reason: string?)
     if ok then
         active = false
+        modeChanged:Fire(nil)
     else
         warn("Build rejected:", reason)
     end

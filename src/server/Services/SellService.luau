@@ -74,8 +74,21 @@ local function createPad(player: Player)
     prompt.Triggered:Connect(function(actor: Player)
         if actor ~= player then return end
         local inventory = InventoryService.GetInventory(actor)
-        local entry = if inventory then inventory[1] else nil
-        if entry then SellService.Sell(actor, entry.ItemId, entry.Variant, entry.Quantity) end
+        local entry = nil
+        for _, candidate in inventory or {} do
+            if CropConfig[candidate.ItemId] then
+                entry = candidate
+                break
+            end
+        end
+        local ok, reason = false, "InsufficientItems"
+        if entry then
+            ok, reason = SellService.Sell(actor, entry.ItemId, entry.Variant, entry.Quantity)
+        end
+        local notice = ReplicatedStorage:FindFirstChild("HudNotice")
+        if notice and notice:IsA("RemoteEvent") then
+            notice:FireClient(actor, if ok then "Items sold!" else "Sale failed", reason)
+        end
     end)
     prompt.Parent = pad
 end
