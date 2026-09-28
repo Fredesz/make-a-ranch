@@ -57,7 +57,15 @@ RunService.RenderStepped:Connect(function()
     if not active then return end
     local definition = BuildingConfig[selectedBuilding]
     local folder = workspace:FindFirstChild("RanchPlots")
-    local plot = if folder then folder:FindFirstChild("Plot_" .. player.UserId) else nil
+    local plot = nil
+    if folder then
+        for _, candidate in folder:GetChildren() do
+            if candidate:GetAttribute("OwnerUserId") == player.UserId then
+                plot = candidate
+                break
+            end
+        end
+    end
     local ground = if plot then plot:FindFirstChild("Ground") else nil
     if not ground or not ground:IsA("BasePart") then return end
     gridX = math.floor((mouse.Hit.Position.X - ground.Position.X) / PlotConfig.BuildGridSize + 0.5)

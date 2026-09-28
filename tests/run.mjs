@@ -28,6 +28,7 @@ for (const [name, file] of files) {
 }
 source += fs.readFileSync('tests/session.spec.luau', 'utf8');
 source += fs.readFileSync('tests/crop.spec.luau', 'utf8');
+source += '\nfor _, player in Players:GetPlayers() do leave(player) end\n';
 source += fs.readFileSync('tests/build.spec.luau', 'utf8');
 source += fs.readFileSync('tests/chicken.spec.luau', 'utf8');
 source += fs.readFileSync('tests/data.spec.luau', 'utf8');

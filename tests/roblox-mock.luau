@@ -81,6 +81,7 @@ function Instance.new(className)
         copy.Position = self.Position
         copy.Color = self.Color
         copy.Anchored = self.Anchored
+        copy.Text = self.Text
         copy.attributes = table.clone(self.attributes)
         for _, child in self.children do child:Clone().Parent = copy end
         return copy
@@ -125,6 +126,7 @@ ranchPlots.Parent = workspace
 local firstPlot = Instance.new("Model")
 firstPlot.Name = "Plot_1"
 firstPlot.Parent = ranchPlots
+firstPlot:SetAttribute("PlotIndex", 1)
 local function plotPart(name, x, y, z, sx, sy, sz)
     local part = Instance.new("Part")
     part.Name = name
@@ -133,10 +135,30 @@ local function plotPart(name, x, y, z, sx, sy, sz)
     part.Size = Vector3.new(sx, sy, sz)
     part.Parent = firstPlot
 end
-plotPart("Ground", 0, 0, 24, 20, 1, 20)
+plotPart("Ground", 0, 0, 24, 54, 1, 72)
 plotPart("CropSlot", 0, 0.75, 24, 6, 0.5, 6)
 plotPart("SeedShop", -7, 0.75, 24, 3, 0.5, 3)
 plotPart("SellPad", 7, 0.75, 24, 3, 0.5, 3)
+local ownerSign = Instance.new("Model")
+ownerSign.Name = "OwnerSign"
+ownerSign.Parent = firstPlot
+local ownerText = Instance.new("TextLabel")
+ownerText.Name = "OwnerText"
+ownerText.Text = "Parcela 1\nDisponible"
+ownerText.Parent = ownerSign
+for index = 2, 8 do
+    local model = firstPlot:Clone()
+    model.Name = "Plot_" .. index
+    model:SetAttribute("PlotIndex", index)
+    for _, descendant in model:GetDescendants() do
+        if descendant:IsA("BasePart") then
+            descendant.Position += Vector3.new((index - 1) * 64, 0, 0)
+        elseif descendant:IsA("TextLabel") then
+            descendant.Text = "Parcela " .. index .. "\nDisponible"
+        end
+    end
+    model.Parent = ranchPlots
+end
 local replicatedStorage = Instance.new("ReplicatedStorage")
 local saved = {}
 local fakeStore = {
@@ -180,7 +202,8 @@ local function advance(seconds)
     now = target
 end
 local function join(id)
-    local player = { UserId = id, Parent = Players }
+    local player = { UserId = id, Parent = Players, Name = "Player" .. id, DisplayName = "Farmer" .. id }
+    function player:Kick(message) self.KickMessage = message end
     table.insert(Players.list, player)
     Players.PlayerAdded:Fire(player)
     return player

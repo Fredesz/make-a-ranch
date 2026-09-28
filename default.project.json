@@ -2,66 +2,20 @@
   "name": "Make a Ranch",
   "tree": {
     "$className": "DataModel",
-
     "Workspace": {
-      "$className": "Workspace",
-      "$ignoreUnknownInstances": true,
-      "RanchPlots": {
-        "$className": "Folder",
-        "Plot_1": {
-          "$className": "Model",
-          "Ground": {
-            "$className": "Part",
-            "$properties": {
-              "Anchored": true,
-              "Size": [20, 1, 20],
-              "Position": [0, 0, 24],
-              "Color": [0.392157, 0.54902, 0.27451]
-            }
-          },
-          "CropSlot": {
-            "$className": "Part",
-            "$properties": {
-              "Anchored": true,
-              "Size": [6, 0.5, 6],
-              "Position": [0, 0.75, 24],
-              "Color": [0.392157, 0.254902, 0.156863]
-            }
-          },
-          "SeedShop": {
-            "$className": "Part",
-            "$properties": {
-              "Anchored": true,
-              "Size": [3, 0.5, 3],
-              "Position": [-7, 0.75, 24],
-              "Color": [0.921569, 0.745098, 0.215686]
-            }
-          },
-          "SellPad": {
-            "$className": "Part",
-            "$properties": {
-              "Anchored": true,
-              "Size": [3, 0.5, 3],
-              "Position": [7, 0.75, 24],
-              "Color": [0.254902, 0.509804, 0.745098]
-            }
-          }
-        }
-      }
+      "$path": "src/world",
+      "$ignoreUnknownInstances": true
     },
-
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
       }
     },
-
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
       }
     },
-
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "Client": {

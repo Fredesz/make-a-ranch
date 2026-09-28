@@ -1,15 +1,24 @@
 --!strict
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
 
 type Plot = { Model: Model, Slot: Part, Index: number }
 local plots: { [Player]: Plot } = {}
 local usedIndices: { [number]: boolean } = {}
 local initialized = false
-local template: Model? = nil
+local templates: { Model } = {}
 local PlotService = {}
+
+local function updateSign(model: Model, index: number, player: Player)
+    local sign = model:FindFirstChild("OwnerSign")
+    assert(sign, "The plot owner sign is missing")
+    for _, descendant in sign:GetDescendants() do
+        if descendant:IsA("TextLabel") and descendant.Name == "OwnerText" then
+            descendant.Text = string.format("Parcela %d\n%s\n@%s", index, player.DisplayName, player.Name)
+            descendant.TextScaled = true
+        end
+    end
+end
 
 local function assignPlot(player: Player, container: Folder)
     if plots[player] then
@@ -17,28 +26,24 @@ local function assignPlot(player: Player, container: Folder)
     end
 
     local index = 1
-    while usedIndices[index] do
+    while index <= #templates and usedIndices[index] do
         index += 1
+    end
+    if index > #templates then
+        player:Kick("Todas las parcelas están ocupadas. Intenta entrar en otro servidor.")
+        return
     end
     usedIndices[index] = true
 
-    local model: Model
-    if index == 1 then
-        local first = container:FindFirstChild("Plot_1")
-        assert(first and first:IsA("Model"), "The permanent Plot_1 is missing")
-        model = first
-    else
-        assert(template, "Plot template is missing")
-        model = template:Clone()
-        local offset = Vector3.new((index - 1) * PlotConfig.Spacing, 0, 0)
-        for _, descendant in model:GetDescendants() do
-            if descendant:IsA("BasePart") then
-                descendant.Position += offset
-            end
-        end
-    end
-    model.Name = "Plot_" .. player.UserId
+    local model = container:FindFirstChild("Plot_" .. index)
+    assert(model and model:IsA("Model"), "The permanent plot is missing")
     model:SetAttribute("OwnerUserId", player.UserId)
+    model:SetAttribute("OwnerName", player.Name)
+    updateSign(model, index, player)
+    local spawn = workspace:FindFirstChild("RanchSpawn")
+    if spawn and spawn:IsA("SpawnLocation") then
+        player.RespawnLocation = spawn
+    end
     local slot = model:FindFirstChild("CropSlot")
     assert(slot and slot:IsA("Part"), "The plot crop slot is missing")
     for _, descendant in model:GetDescendants() do
@@ -71,13 +76,19 @@ function PlotService.Init()
     initialized = true
 
     local container = workspace:WaitForChild("RanchPlots") :: Folder
-    local first = container:WaitForChild("Plot_1")
-    assert(first:IsA("Model"), "RanchPlots.Plot_1 must be a Model")
-    for _, name in { "Ground", "CropSlot", "SeedShop", "SellPad" } do
-        assert(first:FindFirstChild(name), "Plot_1 is missing " .. name)
+    for _, model in container:GetChildren() do
+        assert(model:IsA("Model"), "RanchPlots children must be Models")
+        local index = model:GetAttribute("PlotIndex")
+        assert(typeof(index) == "number" and index >= 1 and index % 1 == 0,
+            "Each plot needs a positive PlotIndex")
+        assert(not templates[index], "Duplicate PlotIndex")
+        for _, name in { "Ground", "CropSlot", "SeedShop", "SellPad", "OwnerSign" } do
+            assert(model:FindFirstChild(name), "Plot is missing " .. name)
+        end
+        templates[index] = model:Clone()
     end
-    template = first:Clone()
-    template.Parent = nil
+    assert(#templates == #container:GetChildren(), "Plot indices must be consecutive")
+    assert(#templates > 0, "No ranch plots found")
 
     Players.PlayerAdded:Connect(function(player: Player)
         assignPlot(player, container)
@@ -88,12 +99,8 @@ function PlotService.Init()
             plots[player] = nil
             usedIndices[plot.Index] = nil
             plot.Model:Destroy()
-            if plot.Index == 1 then
-                assert(template, "Plot template is missing")
-                local replacement = template:Clone()
-                replacement.Name = "Plot_1"
-                replacement.Parent = container
-            end
+            local replacement = templates[plot.Index]:Clone()
+            replacement.Parent = container
         end
     end)
     for _, player in Players:GetPlayers() do
