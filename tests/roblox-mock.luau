@@ -58,6 +58,33 @@ function Instance.new(className)
         return nil
     end
     function object:GetChildren() return table.clone(self.children) end
+    function object:GetDescendants()
+        local result = {}
+        local function visit(parent)
+            for _, child in parent.children do
+                table.insert(result, child)
+                visit(child)
+            end
+        end
+        visit(self)
+        return result
+    end
+    function object:WaitForChild(name)
+        local child = self:FindFirstChild(name)
+        assert(child, "Missing test instance: " .. name)
+        return child
+    end
+    function object:Clone()
+        local copy = Instance.new(self.ClassName)
+        copy.Name = self.Name
+        copy.Size = self.Size
+        copy.Position = self.Position
+        copy.Color = self.Color
+        copy.Anchored = self.Anchored
+        copy.attributes = table.clone(self.attributes)
+        for _, child in self.children do child:Clone().Parent = copy end
+        return copy
+    end
     function object:FireClient() end
     function object:IsA(class) return class == self.ClassName or (class == "BasePart" and self.ClassName == "Part") end
     function object:IsDescendantOf(ancestor)
@@ -92,6 +119,24 @@ function Instance.new(className)
     })
 end
 local workspace = Instance.new("Workspace")
+local ranchPlots = Instance.new("Folder")
+ranchPlots.Name = "RanchPlots"
+ranchPlots.Parent = workspace
+local firstPlot = Instance.new("Model")
+firstPlot.Name = "Plot_1"
+firstPlot.Parent = ranchPlots
+local function plotPart(name, x, y, z, sx, sy, sz)
+    local part = Instance.new("Part")
+    part.Name = name
+    part.Anchored = true
+    part.Position = Vector3.new(x, y, z)
+    part.Size = Vector3.new(sx, sy, sz)
+    part.Parent = firstPlot
+end
+plotPart("Ground", 0, 0, 24, 20, 1, 20)
+plotPart("CropSlot", 0, 0.75, 24, 6, 0.5, 6)
+plotPart("SeedShop", -7, 0.75, 24, 3, 0.5, 3)
+plotPart("SellPad", 7, 0.75, 24, 3, 0.5, 3)
 local replicatedStorage = Instance.new("ReplicatedStorage")
 local saved = {}
 local fakeStore = {

@@ -56,14 +56,8 @@ local function createPad(player: Player)
     if pads[player] then return end
     local slot = PlotService.GetSlot(player)
     if not slot then return end
-    local pad = Instance.new("Part")
-    pad.Name = "SellPad"
-    pad.Anchored = true
-    pad.Size = PlotConfig.SellPadSize
-    pad.Position = slot.Position + PlotConfig.SellPadOffset
-    pad.Color = PlotConfig.SellPadColor
-    pad:SetAttribute("OwnerUserId", player.UserId)
-    pad.Parent = slot.Parent
+    local pad = slot.Parent:FindFirstChild("SellPad")
+    assert(pad and pad:IsA("Part"), "The permanent SellPad is missing")
     pads[player] = pad
 
     local prompt = Instance.new("ProximityPrompt")

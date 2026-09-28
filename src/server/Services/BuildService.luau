@@ -101,7 +101,7 @@ local function place(
         fieldSlot.Size = Vector3.new(4, 0.3, 4)
         fieldSlot.Position = part.Position + Vector3.new(0,
             (part.Size.Y + fieldSlot.Size.Y) / 2, 0)
-        fieldSlot.Color = PlotConfig.SoilColor
+        fieldSlot.Color = slot.Color
         fieldSlot:SetAttribute("FieldSlot", true)
         fieldSlot.Parent = model
         assert(CropService.RegisterFieldSlot(player, fieldSlot), "Field slot registration failed")

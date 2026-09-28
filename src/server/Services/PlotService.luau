@@ -8,6 +8,7 @@ type Plot = { Model: Model, Slot: Part, Index: number }
 local plots: { [Player]: Plot } = {}
 local usedIndices: { [number]: boolean } = {}
 local initialized = false
+local template: Model? = nil
 local PlotService = {}
 
 local function assignPlot(player: Player, container: Folder)
@@ -21,25 +22,30 @@ local function assignPlot(player: Player, container: Folder)
     end
     usedIndices[index] = true
 
-    local model = Instance.new("Model")
+    local model: Model
+    if index == 1 then
+        local first = container:FindFirstChild("Plot_1")
+        assert(first and first:IsA("Model"), "The permanent Plot_1 is missing")
+        model = first
+    else
+        assert(template, "Plot template is missing")
+        model = template:Clone()
+        local offset = Vector3.new((index - 1) * PlotConfig.Spacing, 0, 0)
+        for _, descendant in model:GetDescendants() do
+            if descendant:IsA("BasePart") then
+                descendant.Position += offset
+            end
+        end
+    end
     model.Name = "Plot_" .. player.UserId
     model:SetAttribute("OwnerUserId", player.UserId)
-
-    local ground = Instance.new("Part")
-    ground.Name = "Ground"
-    ground.Anchored = true
-    ground.Size = PlotConfig.GroundSize
-    ground.Position = PlotConfig.Origin + Vector3.new((index - 1) * PlotConfig.Spacing, 0, 0)
-    ground.Color = PlotConfig.GroundColor
-    ground.Parent = model
-
-    local slot = Instance.new("Part")
-    slot.Name = "CropSlot"
-    slot.Anchored = true
-    slot.Size = PlotConfig.SoilSize
-    slot.Position = ground.Position + Vector3.new(0, (ground.Size.Y + slot.Size.Y) / 2, 0)
-    slot.Color = PlotConfig.SoilColor
-    slot.Parent = model
+    local slot = model:FindFirstChild("CropSlot")
+    assert(slot and slot:IsA("Part"), "The plot crop slot is missing")
+    for _, descendant in model:GetDescendants() do
+        if descendant:IsA("BasePart") then
+            descendant:SetAttribute("OwnerUserId", player.UserId)
+        end
+    end
 
     plots[player] = { Model = model, Slot = slot, Index = index }
     model.Parent = container
@@ -64,9 +70,14 @@ function PlotService.Init()
     end
     initialized = true
 
-    local container = Instance.new("Folder")
-    container.Name = "RanchPlots"
-    container.Parent = workspace
+    local container = workspace:WaitForChild("RanchPlots") :: Folder
+    local first = container:WaitForChild("Plot_1")
+    assert(first:IsA("Model"), "RanchPlots.Plot_1 must be a Model")
+    for _, name in { "Ground", "CropSlot", "SeedShop", "SellPad" } do
+        assert(first:FindFirstChild(name), "Plot_1 is missing " .. name)
+    end
+    template = first:Clone()
+    template.Parent = nil
 
     Players.PlayerAdded:Connect(function(player: Player)
         assignPlot(player, container)
@@ -77,6 +88,12 @@ function PlotService.Init()
             plots[player] = nil
             usedIndices[plot.Index] = nil
             plot.Model:Destroy()
+            if plot.Index == 1 then
+                assert(template, "Plot template is missing")
+                local replacement = template:Clone()
+                replacement.Name = "Plot_1"
+                replacement.Parent = container
+            end
         end
     end)
     for _, player in Players:GetPlayers() do
