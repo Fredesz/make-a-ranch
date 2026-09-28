@@ -1,6 +1,8 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CropConfig = require(ReplicatedStorage.Shared.Config.CropConfig)
 
 export type InventoryEntry = {
     ItemId: string,
@@ -10,6 +12,7 @@ export type InventoryEntry = {
 
 export type PlayerData = {
     Coins: number,
+    Seeds: number,
     Inventory: { InventoryEntry },
     Buildings: { BuildingEntry },
 }
@@ -63,6 +66,7 @@ local function createData(player: Player)
 
     dataByPlayer[player] = {
         Coins = STARTING_COINS,
+        Seeds = CropConfig.Carrot.StartingSeeds,
         Inventory = {},
         Buildings = {},
     }
@@ -116,6 +120,7 @@ function PlayerDataService.LoadData(player: Player, snapshot: PlayerData): boole
     if not dataByPlayer[player] then return false end
     dataByPlayer[player] = {
         Coins = snapshot.Coins,
+        Seeds = snapshot.Seeds,
         Inventory = copyInventory(snapshot.Inventory),
         Buildings = copyBuildings(snapshot.Buildings),
     }
@@ -132,9 +137,35 @@ function PlayerDataService.GetData(player: Player): PlayerData?
 
     return {
         Coins = data.Coins,
+        Seeds = data.Seeds,
         Inventory = copyInventory(data.Inventory),
         Buildings = copyBuildings(data.Buildings),
     }
+end
+
+function PlayerDataService.GetSeeds(player: Player): number?
+    if not PlayerDataService.IsReady(player) then return nil end
+    local data = dataByPlayer[player]
+    return if data then data.Seeds else nil
+end
+
+function PlayerDataService.AddSeeds(player: Player, quantity: number): (boolean, string?)
+    if not isValidAmount(quantity) or quantity == 0 then return false, "InvalidQuantity" end
+    local data = dataByPlayer[player]
+    if not data then return false, "DataNotFound" end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
+    if quantity > MAX_SAFE_INTEGER - data.Seeds then return false, "QuantityLimitExceeded" end
+    data.Seeds += quantity
+    return true, nil
+end
+
+function PlayerDataService.ConsumeSeed(player: Player): (boolean, string?)
+    local data = dataByPlayer[player]
+    if not data then return false, "DataNotFound" end
+    if not PlayerDataService.IsReady(player) then return false, "DataNotReady" end
+    if data.Seeds == 0 then return false, "NoSeeds" end
+    data.Seeds -= 1
+    return true, nil
 end
 
 function PlayerDataService.GetBuildings(player: Player): { BuildingEntry }?

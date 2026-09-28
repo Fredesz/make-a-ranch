@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
-local CropService = require(script.Parent.CropService)
 
 local HudService = {}
 local initialized = false
@@ -20,7 +19,7 @@ function HudService.Init()
             Coins = data.Coins,
             Inventory = data.Inventory,
             Buildings = data.Buildings,
-            Seeds = CropService.GetSeeds(player) or 0,
+            Seeds = data.Seeds,
         }
     end
     snapshot.Parent = ReplicatedStorage

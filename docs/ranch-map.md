@@ -5,7 +5,7 @@ entrada hacia el camino central, cercas y un cartel de madera visible por ambos
 lados. Las montañas y la plaza también existen en modo edición.
 
 El servidor reserva la primera parcela libre al entrar. El cartel muestra su
-número, el nombre visible y el @usuario. Al salir, se restaura la parcela vacía;
+número y el nombre visible del jugador. Al salir, se restaura la parcela vacía;
 los edificios guardados se cargan en la parcela que se asigne en la próxima sesión.
 El personaje aparece y reaparece en la plaza central.
 

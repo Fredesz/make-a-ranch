@@ -12,6 +12,7 @@ local DataConfig = require(ReplicatedStorage.Shared.Config.DataConfig)
 local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
 local BuildService = require(script.Parent.BuildService)
+local CropService = require(script.Parent.CropService)
 
 local MAX_SAFE_INTEGER = 9007199254740991
 local store: GlobalDataStore? = nil
@@ -41,8 +42,10 @@ end
 
 local function sanitize(raw: any): PlayerDataService.PlayerData?
     if typeof(raw) ~= "table" or not validWhole(raw.Coins) then return nil end
+    if raw.Seeds ~= nil and not validWhole(raw.Seeds) then return nil end
     local data: PlayerDataService.PlayerData = {
         Coins = raw.Coins,
+        Seeds = if raw.Seeds == nil then CropConfig.Carrot.StartingSeeds else raw.Seeds,
         Inventory = {},
         Buildings = {},
     }
@@ -91,6 +94,7 @@ function DataService.Load(player: Player): (boolean, string?)
         return getStore():GetAsync(DataConfig.KeyPrefix .. player.UserId)
     end)
     if not ok then return false, tostring(raw) end
+    CropService.EnsureSession(player)
     if raw ~= nil then
         local data = sanitize(raw)
         if not data then return false, "InvalidSavedData" end
@@ -100,6 +104,7 @@ function DataService.Load(player: Player): (boolean, string?)
         BuildService.Restore(player)
     end
     PlayerDataService.SetReady(player, true)
+    CropService.RefreshSeeds(player)
     loaded[player] = true
     return true, nil
 end
@@ -140,6 +145,7 @@ function DataService.Init()
             local ok, reason = DataService.Load(player)
             if not ok then
                 PlayerDataService.SetReady(player, true)
+                CropService.RefreshSeeds(player)
                 warn("Player data load unavailable:", player.UserId, reason)
             end
         end)
@@ -150,6 +156,7 @@ function DataService.Init()
                 local ok, reason = DataService.Load(player)
                 if not ok then
                     PlayerDataService.SetReady(player, true)
+                    CropService.RefreshSeeds(player)
                     warn("Player data load unavailable:", player.UserId, reason)
                 end
             end
