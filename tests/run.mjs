@@ -7,6 +7,7 @@ const files = [
   ['PlotConfig', 'src/shared/Config/PlotConfig.luau'],
   ['BuildingConfig', 'src/shared/Config/BuildingConfig.luau'],
   ['AnimalConfig', 'src/shared/Config/AnimalConfig.luau'],
+  ['ProductConfig', 'src/shared/Config/ProductConfig.luau'],
   ['PlayerDataService', 'src/server/PlayerDataService.luau'],
   ['PlotService', 'src/server/Services/PlotService.luau'],
   ['CropConfig', 'src/shared/Config/CropConfig.luau'],

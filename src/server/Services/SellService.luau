@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CropConfig = require(ReplicatedStorage.Shared.Config.CropConfig)
+local ProductConfig = require(ReplicatedStorage.Shared.Config.ProductConfig)
 local PlotConfig = require(ReplicatedStorage.Shared.Config.PlotConfig)
 local VariantConfig = require(ReplicatedStorage.Shared.Config.VariantConfig)
 local PlayerDataService = require(script.Parent.Parent.PlayerDataService)
@@ -36,14 +37,14 @@ function SellService.Sell(
     quantity: number
 ): (boolean, string?)
     if not nearPad(player) then return false, "InvalidPlotOrDistance" end
-    local crop = if typeof(itemId) == "string" then CropConfig[itemId] else nil
+    local item = if typeof(itemId) == "string" then CropConfig[itemId] or ProductConfig[itemId] else nil
     local variantData = if typeof(variant) == "string" then VariantConfig[variant] else nil
-    if not crop or not variantData then return false, "UnknownItemOrVariant" end
+    if not item or not variantData then return false, "UnknownItemOrVariant" end
     if typeof(quantity) ~= "number" or quantity ~= quantity
         or quantity < 1 or quantity % 1 ~= 0 or quantity > MAX_SAFE_INTEGER then
         return false, "InvalidQuantity"
     end
-    local unitPrice = crop.SellPrice * variantData.ValueMultiplier
+    local unitPrice = item.SellPrice * variantData.ValueMultiplier
     local totalPrice = unitPrice * quantity
     if totalPrice ~= totalPrice or totalPrice < 0 or totalPrice > MAX_SAFE_INTEGER
         or totalPrice % 1 ~= 0 then
@@ -62,7 +63,7 @@ local function createPad(player: Player)
 
     local prompt = Instance.new("ProximityPrompt")
     prompt.ActionText = "Sell first stack"
-    prompt.ObjectText = "Crop Market"
+    prompt.ObjectText = "Ranch Market"
     prompt.MaxActivationDistance = PlotConfig.SellInteractionDistance
     prompt.RequiresLineOfSight = false
     prompt.Triggered:Connect(function(actor: Player)
@@ -70,7 +71,7 @@ local function createPad(player: Player)
         local inventory = InventoryService.GetInventory(actor)
         local entry = nil
         for _, candidate in inventory or {} do
-            if CropConfig[candidate.ItemId] then
+            if CropConfig[candidate.ItemId] or ProductConfig[candidate.ItemId] then
                 entry = candidate
                 break
             end
